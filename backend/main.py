@@ -141,7 +141,7 @@ def chat_stream(req: ChatRequest):
         raise HTTPException(400, "שאלה ריקה")
 
     session_id, session = _get_session(req.session_id)
-    results = index.search(req.question, k=6)
+    results = index.search(req.question, k=10)
 
     def event_stream():
         yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
