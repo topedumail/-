@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import threading
+import traceback
 import uuid
 from pathlib import Path
 
@@ -35,6 +37,9 @@ index = HybridIndex(client=client, cache_path=CACHE_PATH) if client else None
 
 # Sessions בזיכרון. בפרודקשן צריך Redis או DB.
 _sessions: dict[str, ChatSession] = {}
+
+# סטטוס בניית האינדקס — כדי שהשרת יוכל לדווח אם האינדקס מוכן.
+_index_state = {"ready": False, "building": False, "error": None}
 
 
 def _get_session(session_id: str | None) -> tuple[str, ChatSession]:
@@ -70,16 +75,34 @@ app.add_middleware(
 )
 
 
+def _build_index_in_background() -> None:
+    """בונה את האינדקס ברקע — לא חוסם את עליית השרת."""
+    _index_state["building"] = True
+    try:
+        KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+        summary = index.build(KNOWLEDGE_DIR)
+        print(
+            f"[main] נטענו {summary['documents']} מסמכים, "
+            f"{summary['chunks']} chunks ({summary['new']} חדשים, {summary['cached']} מ-cache).",
+            flush=True,
+        )
+        _index_state["ready"] = True
+    except Exception as e:
+        _index_state["error"] = str(e)
+        print(f"[main] שגיאה בבניית האינדקס: {e}", flush=True)
+        traceback.print_exc()
+    finally:
+        _index_state["building"] = False
+
+
 @app.on_event("startup")
 def on_startup() -> None:
+    """מפעיל את בניית האינדקס ב-thread נפרד — השרת מאזין על הפורט מיד."""
     if index is None:
+        print("[main] אין מפתח OpenAI — האינדקס לא ייבנה.", flush=True)
         return
-    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
-    summary = index.build(KNOWLEDGE_DIR)
-    print(
-        f"[main] נטענו {summary['documents']} מסמכים, "
-        f"{summary['chunks']} chunks ({summary['new']} חדשים, {summary['cached']} מ-cache)."
-    )
+    threading.Thread(target=_build_index_in_background, daemon=True).start()
+    print("[main] השרת עלה. בניית האינדקס רצה ברקע.", flush=True)
 
 
 @app.get("/")
@@ -91,6 +114,10 @@ def root() -> FileResponse:
 def status() -> IndexStatus:
     if index is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
+    if _index_state["error"]:
+        raise HTTPException(500, f"שגיאה בבניית האינדקס: {_index_state['error']}")
+    if not _index_state["ready"]:
+        raise HTTPException(503, "האינדקס בתהליך בנייה — נסה שוב בעוד דקה")
     sources = sorted({c.source for c in index.chunks})
     return IndexStatus(
         documents=len({c.source for c in index.chunks}),
@@ -137,6 +164,8 @@ def chat_stream(req: ChatRequest):
     """
     if index is None or client is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
+    if not _index_state["ready"]:
+        raise HTTPException(503, "המאגר עדיין נטען — נסה שוב בעוד דקה")
     if not req.question.strip():
         raise HTTPException(400, "שאלה ריקה")
 
