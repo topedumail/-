@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>אגף בכיר חינוך ילדים ונוער בסיכון</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --panel: #ffffff;
+      --primary: #1e3a8a;
+      --primary-dark: #1e2f6b;
+      --primary-soft: #eef2ff;
+      --secondary: #0891b2;
+      --accent: #d97706;
+      --text: #0f172a;
+      --text-soft: #475569;
+      --muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --user-bubble: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      --bot-bubble: #ffffff;
+      --error-bg: #fef2f2;
+      --error: #dc2626;
+      --success: #16a34a;
+      --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+      --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.10);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: "Heebo", "Segoe UI", "Arial Hebrew", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header.gov-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 0;
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+    .gov-header::after {
+      content: "";
+      display: block;
+      height: 4px;
+      background: linear-gradient(90deg, #d97706 0%, #f59e0b 50%, #d97706 100%);
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .header-emblem {
+      width: 68px;
+      height: 68px;
+      background: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      flex-shrink: 0;
+      padding: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header-emblem img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .header-text .ministry-label {
+      font-size: 12px;
+      opacity: 0.85;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      margin-bottom: 2px;
+    }
+    .header-text h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+    }
+    .header-text .subtitle {
+      margin-top: 4px;
+      font-size: 13px;
+      opacity: 0.85;
+      font-weight: 400;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-status {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-status::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.25);
+    }
+    .btn-refresh {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-refresh:hover {
+      background: rgba(255,255,255,0.25);
+      transform: translateY(-1px);
+    }
+
+    /* Main layout */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    /* Messages */
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      scroll-behavior: smooth;
+    }
+    #messages::-webkit-scrollbar { width: 10px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 999px;
+    }
+
+    .msg {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.3s ease-out;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .msg.user { align-items: flex-start; }
+    .msg.bot { align-items: flex-end; }
+
+    .bubble-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      max-width: 85%;
+    }
+    .msg.user .bubble-wrap { flex-direction: row; }
+    .msg.bot .bubble-wrap { flex-direction: row-reverse; }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+      font-weight: 600;
+    }
+    .msg.user .avatar {
+      background: var(--primary-soft);
+      color: var(--primary);
+    }
+    .msg.bot .avatar {
+      background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+      color: white;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .bubble {
+      padding: 14px 18px;
+      border-radius: 18px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-size: 15px;
+    }
+    .msg.user .bubble {
+      background: var(--user-bubble);
+      color: white;
+      border-bottom-right-radius: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    .msg.bot .bubble {
+      background: var(--bot-bubble);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 6px;
+      box-shadow: var(--shadow-sm);
+    }
+    .msg.error .bubble {
+      background: var(--error-bg);
+      color: var(--error);
+      border: 1px solid #fecaca;
+    }
+
+    /* Sources */
+    .sources {
+      font-size: 13px;
+      color: var(--text-soft);
+      margin-top: 10px;
+      max-width: 85%;
+      margin-right: 46px;
+    }
+    .sources details {
+      cursor: pointer;
+      background: var(--primary-soft);
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+      padding: 8px 12px;
+      transition: all 0.15s;
+    }
+    .sources details[open] {
+      background: white;
+      box-shadow: var(--shadow-sm);
+    }
+    .sources summary {
+      color: var(--primary);
+      font-weight: 600;
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sources summary::-webkit-details-marker { display: none; }
+    .sources summary::before {
+      content: "▼";
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    .sources details[open] summary::before {
+      transform: rotate(180deg);
+    }
+    .sources .match {
+      background: #f8fafc;
+      padding: 10px 12px;
+      margin-top: 10px;
+      border-radius: 8px;
+      border-right: 3px solid var(--primary);
+      font-size: 13px;
+    }
+    .sources .match-source {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .sources .match-score {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 400;
+      padding: 2px 8px;
+      background: white;
+      border-radius: 999px;
+      margin-right: 6px;
+    }
+    .sources .match-text {
+      color: var(--text-soft);
+      line-height: 1.6;
+    }
+
+    /* Composer */
+    .composer {
+      display: flex;
+      gap: 10px;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .composer:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.08);
+    }
+    #input {
+      flex: 1;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      direction: rtl;
+      line-height: 1.5;
+      transition: border-color 0.15s;
+    }
+    #input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    #send {
+      padding: 0 24px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 100px;
+      justify-content: center;
+    }
+    #send:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    #send:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    #send::after {
+      content: "←";
+      font-size: 18px;
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      gap: 4px;
+      padding: 4px 0;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .typing-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+    .typing-dots span {
+      width: 7px;
+      height: 7px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: typing 1.4s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Welcome message */
+    .welcome {
+      background: linear-gradient(135deg, var(--primary-soft) 0%, #f0f9ff 100%);
+      border: 1px solid #c7d2fe;
+      border-radius: 14px;
+      padding: 20px 22px;
+      margin-bottom: 8px;
+    }
+    .welcome h2 {
+      margin: 0 0 8px;
+      color: var(--primary);
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .welcome p {
+      margin: 0;
+      color: var(--text-soft);
+      line-height: 1.7;
+    }
+    .welcome .examples {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .example-chip {
+      background: white;
+      border: 1px solid var(--border-strong);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      color: var(--text-soft);
+    }
+    .example-chip:hover {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: white;
+    }
+    footer strong { color: var(--text-soft); }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header-inner { padding: 14px 16px; }
+      .header-text h1 { font-size: 17px; }
+      .header-text .subtitle { font-size: 11px; }
+      .header-emblem { width: 44px; height: 44px; font-size: 22px; }
+      .header-status { display: none; }
+      main { padding: 12px; }
+      #messages { padding: 16px; }
+      .bubble-wrap { max-width: 95%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="gov-header">
+    <div class="header-inner">
+      <div class="header-title">
+        <div class="header-emblem">
+          <img src="/static/logo.png" alt="משרד החינוך" onerror="this.style.display='none'; this.parentElement.innerHTML='🎓';" />
+        </div>
+        <div class="header-text">
+          <div class="ministry-label">מדינת ישראל · משרד החינוך</div>
+          <h1>אגף בכיר חינוך ילדים ונוער בסיכון</h1>
+          <div class="subtitle">מערכת ייעוץ ומענה לאנשי הצוות — מבוסס מסמכי האגף</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-status" id="status">טוען...</div>
+        <button class="btn-refresh" onclick="reindex()" title="לקרוא מחדש את המסמכים מהתיקייה">
+          <span>🔄</span> רענן מאגר
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="messages">
+      <div class="welcome">
+        <h2>שלום, אני העוזר הוירטואלי של האגף</h2>
+        <p>אענה על שאלות לפי מסמכי האגף בלבד — תוכניות, נהלים, מקרי בוחן ועקרונות פדגוגיים-טיפוליים.<br>
+        כל תשובה תכלול הפניה למקור ממנו נשענה התשובה.</p>
+        <div class="examples">
+          <div class="example-chip" onclick="askExample(this)">מה זה תוכנית אור?</div>
+          <div class="example-chip" onclick="askExample(this)">מהם עקרונות הפדגוגיה הטיפולית?</div>
+          <div class="example-chip" onclick="askExample(this)">ספר לי על מקרה בוחן מהמחלקה לקב״ס</div>
+          <div class="example-chip" onclick="askExample(this)">מה הקריטריונים לתכנית הישובים?</div>
+        </div>
+      </div>
+    </div>
+    <div class="composer">
+      <textarea id="input" rows="2" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
+      <button id="send" onclick="send()">שלח</button>
+    </div>
+  </main>
+
+  <footer>
+    <strong>הודעת אמינות:</strong> תשובות הבוט מבוססות על המסמכים הרשמיים של האגף. בנושאים רגישים או החלטות מקצועיות — מומלץ לאמת עם הגורם הממונה.
+  </footer>
+
+  <script>
+    const messagesEl = document.getElementById("messages");
+    const inputEl = document.getElementById("input");
+    const sendBtn = document.getElementById("send");
+    const statusEl = document.getElementById("status");
+
+    async function loadStatus() {
+      try {
+        const r = await fetch("/api/status");
+        if (!r.ok) {
+          statusEl.textContent = "שגיאה: " + r.status;
+          return;
+        }
+        const data = await r.json();
+        statusEl.innerHTML = `${data.documents} מסמכים · ${data.chunks} קטעים`;
+      } catch (e) {
+        statusEl.textContent = "אין חיבור לשרת";
+      }
+    }
+
+    async function reindex() {
+      const original = statusEl.innerHTML;
+      statusEl.innerHTML = "מרענן...";
+      try {
+        const r = await fetch("/api/reindex", { method: "POST" });
+        if (!r.ok) {
+          statusEl.innerHTML = original;
+          addMessage("error", "שגיאה ברענון המאגר.");
+          return;
+        }
+        const data = await r.json();
+        statusEl.innerHTML = `${data.documents} מסמכים · ${data.chunks} קטעים`;
+        addMessage("bot", `✅ המאגר רוענן: ${data.documents} מסמכים, ${data.chunks} קטעים.`);
+      } catch (e) {
+        statusEl.innerHTML = original;
+        addMessage("error", "שגיאת רשת בעת רענון.");
+      }
+    }
+
+    function askExample(el) {
+      inputEl.value = el.textContent;
+      send();
+    }
+
+    function escapeHtml(s) {
+      return s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function addMessage(role, text, matches = null) {
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + role;
+
+      const bubbleWrap = document.createElement("div");
+      bubbleWrap.className = "bubble-wrap";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar";
+      avatar.textContent = role === "user" ? "👤" : (role === "error" ? "⚠️" : "🎓");
+      bubbleWrap.appendChild(avatar);
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.textContent = text;
+      bubbleWrap.appendChild(bubble);
+
+      wrap.appendChild(bubbleWrap);
+
+      if (matches && matches.length) {
+        const srcEl = document.createElement("div");
+        srcEl.className = "sources";
+        const details = document.createElement("details");
+        const summary = document.createElement("summary");
+        summary.textContent = `${matches.length} מקורות שאוחזרו מהמאגר`;
+        details.appendChild(summary);
+        matches.forEach((m) => {
+          const mEl = document.createElement("div");
+          mEl.className = "match";
+          mEl.innerHTML =
+            `<div class="match-source">${escapeHtml(m.source)}<span class="match-score">התאמה: ${m.score}</span></div>` +
+            `<div class="match-text">${escapeHtml(m.preview)}${m.preview.length >= 200 ? "..." : ""}</div>`;
+          details.appendChild(mEl);
+        });
+        srcEl.appendChild(details);
+        wrap.appendChild(srcEl);
+      }
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function addTyping() {
+      const wrap = document.createElement("div");
+      wrap.className = "msg bot";
+      wrap.id = "typing-indicator";
+      wrap.innerHTML = `
+        <div class="bubble-wrap">
+          <div class="avatar">🎓</div>
+          <div class="bubble">
+            <div class="typing">
+              <span>מנסח תשובה</span>
+              <div class="typing-dots"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+        </div>`;
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return wrap;
+    }
+
+    async function send() {
+      const q = inputEl.value.trim();
+      if (!q) return;
+      inputEl.value = "";
+      addMessage("user", q);
+      sendBtn.disabled = true;
+
+      const typing = addTyping();
+
+      try {
+        const r = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q }),
+        });
+        typing.remove();
+        if (!r.ok) {
+          const err = await r.text();
+          addMessage("error", "שגיאה: " + err);
+          return;
+        }
+        const data = await r.json();
+        addMessage("bot", data.answer, data.matches);
+      } catch (e) {
+        typing.remove();
+        addMessage("error", "שגיאה ברשת: " + e.message);
+      } finally {
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    inputEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    loadStatus();
+    inputEl.focus();
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/data/.embed_cache.pkl
+.DS_Store
+
+# קבצים גדולים שעולים על מגבלת GitHub (100MB)
+*.mp4
+*.ppsx
+*.mov
+*.avi
+
