@@ -209,12 +209,8 @@
       box-shadow: var(--shadow-md);
       scroll-behavior: smooth;
     }
-    #messages::-webkit-scrollbar { width: 10px; }
-    #messages::-webkit-scrollbar-track { background: transparent; }
-    #messages::-webkit-scrollbar-thumb {
-      background: var(--border-strong);
-      border-radius: 999px;
-    }
+    #messages { scrollbar-width: none; }
+    #messages::-webkit-scrollbar { display: none; }
 
     .msg {
       margin-bottom: 20px;
