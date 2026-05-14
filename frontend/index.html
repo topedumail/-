@@ -632,9 +632,10 @@
       /* הסתר פסקת הסבר — תופסת יותר מדי מקום */
       .welcome p { display: none; }
       .welcome .examples-label { margin-top: 10px; margin-bottom: 6px; font-size: 12px; }
-      /* כפתורי דוגמה — כל אחד שורה שלמה */
-      .welcome .examples { flex-direction: column; gap: 6px; }
-      .example-chip { font-size: 13px; padding: 9px 14px; border-radius: 10px; width: 100%; justify-content: flex-start; }
+      /* כפתורי דוגמה — 2 בלבד, זה לצד זה */
+      .mobile-hide { display: none; }
+      .welcome .examples { flex-direction: row; gap: 6px; }
+      .example-chip { font-size: 12px; padding: 8px 10px; border-radius: 10px; flex: 1; justify-content: center; text-align: center; }
 
       /* Sources */
       .sources { margin-right: 36px; font-size: 12px; }
@@ -692,8 +693,8 @@
           <div class="examples">
             <button class="example-chip" onclick="askExample(this)">מה זה תוכנית אור?</button>
             <button class="example-chip" onclick="askExample(this)">מהם עקרונות הפדגוגיה הטיפולית?</button>
-            <button class="example-chip" onclick="askExample(this)">ספר לי על מקרה בוחן מהמחלקה לקב״ס</button>
-            <button class="example-chip" onclick="askExample(this)">איך כותבים תיעוד אירוע דגל?</button>
+            <button class="example-chip mobile-hide" onclick="askExample(this)">ספר לי על מקרה בוחן מהמחלקה לקב״ס</button>
+            <button class="example-chip mobile-hide" onclick="askExample(this)">איך כותבים תיעוד אירוע דגל?</button>
           </div>
         </div>
       </div>
