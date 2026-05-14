@@ -492,6 +492,9 @@
       </div>
       <div class="header-actions">
         <div class="header-status" id="status">טוען...</div>
+        <button class="btn-refresh" onclick="newConversation()" title="התחלת שיחה חדשה — מאפס את הזיכרון של הבוט">
+          <span>💬</span> שיחה חדשה
+        </button>
         <button class="btn-refresh" onclick="reindex()" title="לקרוא מחדש את המסמכים מהתיקייה">
           <span>🔄</span> רענן מאגר
         </button>
@@ -529,6 +532,8 @@
     const sendBtn = document.getElementById("send");
     const statusEl = document.getElementById("status");
 
+    let sessionId = null;
+
     async function loadStatus() {
       try {
         const r = await fetch("/api/status");
@@ -562,6 +567,23 @@
       }
     }
 
+    async function newConversation() {
+      try {
+        await fetch("/api/session/reset?session_id=" + encodeURIComponent(sessionId || ""), {
+          method: "POST",
+        });
+      } catch (e) {
+        // לא קריטי
+      }
+      sessionId = null;
+      // ניקוי כל ההודעות מהצ'אט פרט להודעת הפתיחה
+      const welcome = messagesEl.querySelector(".welcome");
+      messagesEl.innerHTML = "";
+      if (welcome) messagesEl.appendChild(welcome);
+      addMessage("bot", "💬 התחלנו שיחה חדשה. הזיכרון של הבוט אופס.");
+      inputEl.focus();
+    }
+
     function askExample(el) {
       inputEl.value = el.textContent;
       send();
@@ -574,57 +596,65 @@
         .replace(/>/g, "&gt;");
     }
 
-    function addMessage(role, text, matches = null) {
+    function buildMessage(role) {
       const wrap = document.createElement("div");
       wrap.className = "msg " + role;
-
       const bubbleWrap = document.createElement("div");
       bubbleWrap.className = "bubble-wrap";
-
       const avatar = document.createElement("div");
       avatar.className = "avatar";
       avatar.textContent = role === "user" ? "👤" : (role === "error" ? "⚠️" : "🎓");
       bubbleWrap.appendChild(avatar);
-
       const bubble = document.createElement("div");
       bubble.className = "bubble";
-      bubble.textContent = text;
       bubbleWrap.appendChild(bubble);
-
       wrap.appendChild(bubbleWrap);
-
-      if (matches && matches.length) {
-        const srcEl = document.createElement("div");
-        srcEl.className = "sources";
-        const details = document.createElement("details");
-        const summary = document.createElement("summary");
-        summary.textContent = `${matches.length} מקורות שאוחזרו מהמאגר`;
-        details.appendChild(summary);
-        matches.forEach((m) => {
-          const mEl = document.createElement("div");
-          mEl.className = "match";
-          mEl.innerHTML =
-            `<div class="match-source">${escapeHtml(m.source)}<span class="match-score">התאמה: ${m.score}</span></div>` +
-            `<div class="match-text">${escapeHtml(m.preview)}${m.preview.length >= 200 ? "..." : ""}</div>`;
-          details.appendChild(mEl);
-        });
-        srcEl.appendChild(details);
-        wrap.appendChild(srcEl);
-      }
       messagesEl.appendChild(wrap);
       messagesEl.scrollTop = messagesEl.scrollHeight;
+      return { wrap, bubble };
+    }
+
+    function addMessage(role, text, matches = null) {
+      const { wrap, bubble } = buildMessage(role);
+      bubble.textContent = text;
+      if (matches && matches.length) attachSources(wrap, matches);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      return { wrap, bubble };
+    }
+
+    function attachSources(wrapEl, matches) {
+      const srcEl = document.createElement("div");
+      srcEl.className = "sources";
+      const details = document.createElement("details");
+      const summary = document.createElement("summary");
+      summary.textContent = `${matches.length} מקורות שאוחזרו מהמאגר`;
+      details.appendChild(summary);
+      matches.forEach((m) => {
+        const mEl = document.createElement("div");
+        mEl.className = "match";
+        const sectionText = m.section ? ` § ${escapeHtml(m.section)}` : "";
+        const ranks = [];
+        if (m.vector_rank) ranks.push(`vector #${m.vector_rank}`);
+        if (m.bm25_rank) ranks.push(`BM25 #${m.bm25_rank}`);
+        const ranksHtml = ranks.length ? ` <span class="match-score">${ranks.join(" · ")}</span>` : "";
+        mEl.innerHTML =
+          `<div class="match-source">${escapeHtml(m.source)}${sectionText}${ranksHtml}</div>` +
+          `<div class="match-text">${escapeHtml(m.preview)}${m.preview.length >= 250 ? "..." : ""}</div>`;
+        details.appendChild(mEl);
+      });
+      srcEl.appendChild(details);
+      wrapEl.appendChild(srcEl);
     }
 
     function addTyping() {
       const wrap = document.createElement("div");
       wrap.className = "msg bot";
-      wrap.id = "typing-indicator";
       wrap.innerHTML = `
         <div class="bubble-wrap">
           <div class="avatar">🎓</div>
           <div class="bubble">
             <div class="typing">
-              <span>מנסח תשובה</span>
+              <span>מחפש במאגר</span>
               <div class="typing-dots"><span></span><span></span><span></span></div>
             </div>
           </div>
@@ -642,22 +672,79 @@
       sendBtn.disabled = true;
 
       const typing = addTyping();
+      let botMsg = null;
+      let botBubble = null;
+      let sourcesAttached = false;
 
       try {
-        const r = await fetch("/api/chat", {
+        const r = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: q }),
+          body: JSON.stringify({ question: q, session_id: sessionId }),
         });
-        typing.remove();
+
         if (!r.ok) {
+          typing.remove();
           const err = await r.text();
           addMessage("error", "שגיאה: " + err);
           return;
         }
-        const data = await r.json();
-        addMessage("bot", data.answer, data.matches);
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          // SSE: events separated by \n\n
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop();  // last line might be partial
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6);
+            let event;
+            try {
+              event = JSON.parse(jsonStr);
+            } catch {
+              continue;
+            }
+
+            if (event.type === "session") {
+              sessionId = event.session_id;
+            } else if (event.type === "sources") {
+              // נשמור את ה-matches עד שתסיים התשובה
+              window._pendingMatches = event.matches;
+            } else if (event.type === "delta") {
+              if (!botMsg) {
+                typing.remove();
+                const built = buildMessage("bot");
+                botMsg = built.wrap;
+                botBubble = built.bubble;
+              }
+              botBubble.textContent += event.text;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            } else if (event.type === "done") {
+              if (botMsg && window._pendingMatches && !sourcesAttached) {
+                attachSources(botMsg, window._pendingMatches);
+                window._pendingMatches = null;
+                sourcesAttached = true;
+              }
+            }
+          }
+        }
+
+        // אם משום מה לא הגיע אף delta — צרף את המקורות בכל מקרה
+        if (!botMsg && window._pendingMatches) {
+          typing.remove();
+          const built = addMessage("bot", "(לא התקבלה תשובה)");
+          attachSources(built.wrap, window._pendingMatches);
+          window._pendingMatches = null;
+        }
       } catch (e) {
+        if (botMsg) botMsg.remove();
         typing.remove();
         addMessage("error", "שגיאה ברשת: " + e.message);
       } finally {

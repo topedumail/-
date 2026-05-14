@@ -1,20 +1,21 @@
-"""FastAPI app — backend לבוט מענה אישי."""
+"""FastAPI app — בוט מענה אישי עם hybrid search, conversation memory, ו-streaming."""
 from __future__ import annotations
 
+import json
 import os
+import uuid
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from pydantic import BaseModel
 
-from llm import answer_question
-from rag import VectorIndex
+from llm import ChatSession, MAX_HISTORY_TURNS, stream_answer
+from rag import HybridIndex
 
 # --- הגדרות ---
 BACKEND_DIR = Path(__file__).parent
@@ -27,22 +28,29 @@ load_dotenv(PROJECT_DIR / ".env")
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 if not API_KEY:
-    print("[main] אזהרה: לא הוגדר OPENAI_API_KEY. הבוט לא יוכל לענות עד שיוגדר.")
+    print("[main] אזהרה: לא הוגדר OPENAI_API_KEY. הבוט לא יענה עד שיוגדר.")
 
 client = OpenAI(api_key=API_KEY) if API_KEY else None
-index = VectorIndex(client=client, cache_path=CACHE_PATH) if client else None
+index = HybridIndex(client=client, cache_path=CACHE_PATH) if client else None
 
-# --- מודלים של בקשות/תשובות ---
+# Sessions בזיכרון. בפרודקשן צריך Redis או DB.
+_sessions: dict[str, ChatSession] = {}
+
+
+def _get_session(session_id: str | None) -> tuple[str, ChatSession]:
+    if session_id and session_id in _sessions:
+        return session_id, _sessions[session_id]
+    new_id = str(uuid.uuid4())
+    _sessions[new_id] = ChatSession()
+    return new_id, _sessions[new_id]
+
+
+# --- מודלים ---
 
 
 class ChatRequest(BaseModel):
     question: str
-
-
-class ChatResponse(BaseModel):
-    answer: str
-    sources: list[str]
-    matches: list[dict]
+    session_id: str | None = None
 
 
 class IndexStatus(BaseModel):
@@ -52,7 +60,7 @@ class IndexStatus(BaseModel):
 
 
 # --- אפליקציה ---
-app = FastAPI(title="בוט מענה אישי", version="0.1.0")
+app = FastAPI(title="בוט אגף בכיר חינוך ילדים ונוער בסיכון", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -93,7 +101,6 @@ def status() -> IndexStatus:
 
 @app.post("/api/reindex", response_model=IndexStatus)
 def reindex() -> IndexStatus:
-    """לקרוא מחדש את כל המסמכים מהתיקייה (אחרי הוספת/שינוי מסמך)."""
     if index is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
     summary = index.build(KNOWLEDGE_DIR)
@@ -108,24 +115,78 @@ def reindex() -> IndexStatus:
     )
 
 
-@app.post("/api/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+@app.post("/api/session/reset")
+def reset_session(session_id: str | None = None) -> dict:
+    """איפוס היסטוריית שיחה — מתחיל סשן חדש."""
+    if session_id and session_id in _sessions:
+        del _sessions[session_id]
+    new_id = str(uuid.uuid4())
+    _sessions[new_id] = ChatSession()
+    return {"session_id": new_id, "history_size": 0}
+
+
+@app.post("/api/chat/stream")
+def chat_stream(req: ChatRequest):
+    """תשובה ב-streaming. מחזיר Server-Sent Events.
+
+    מבנה ההודעות:
+      data: {"type": "session", "session_id": "..."}
+      data: {"type": "sources", "matches": [...]}
+      data: {"type": "delta", "text": "..."}
+      data: {"type": "done"}
+    """
     if index is None or client is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
     if not req.question.strip():
         raise HTTPException(400, "שאלה ריקה")
-    results = index.search(req.question, k=5)
-    ans = answer_question(client, req.question, results)
-    return ChatResponse(
-        answer=ans.answer,
-        sources=ans.sources,
-        matches=[
-            {"source": r.source, "score": round(r.score, 3), "preview": r.text[:200]}
+
+    session_id, session = _get_session(req.session_id)
+    results = index.search(req.question, k=6)
+
+    def event_stream():
+        yield f"data: {json.dumps({'type': 'session', 'session_id': session_id})}\n\n"
+
+        matches = [
+            {
+                "source": r.source,
+                "section": r.section,
+                "score": r.score,
+                "vector_rank": r.vector_rank,
+                "bm25_rank": r.bm25_rank,
+                "preview": r.text[:250],
+            }
             for r in results
-        ],
+        ]
+        yield f"data: {json.dumps({'type': 'sources', 'matches': matches}, ensure_ascii=False)}\n\n"
+
+        full_text = ""
+        gen = stream_answer(client, req.question, results, session)
+        try:
+            while True:
+                delta = next(gen)
+                full_text += delta
+                yield f"data: {json.dumps({'type': 'delta', 'text': delta}, ensure_ascii=False)}\n\n"
+        except StopIteration as stop:
+            if not full_text and stop.value:
+                full_text = stop.value
+                yield f"data: {json.dumps({'type': 'delta', 'text': full_text}, ensure_ascii=False)}\n\n"
+
+        # שמור את ההיסטוריה
+        session.add("user", req.question)
+        session.add("assistant", full_text)
+
+        yield f"data: {json.dumps({'type': 'done'})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # מנטרל buffering של nginx
+        },
     )
 
 
-# נתיב סטטי לקבצים בפרונט
+# סטטיים
 if FRONTEND_DIR.exists():
     app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
