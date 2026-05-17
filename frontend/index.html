@@ -740,6 +740,7 @@
     }
 
     let sessionId = null;
+    let selectedRole = null;   // מסגרת שנבחרה — תצורף לשאלה הראשונה
 
     async function loadStatus() {
       try {
@@ -800,17 +801,26 @@
         btn.className = "option-btn";
         btn.textContent = role;
         btn.addEventListener("click", () => {
-          // נעל את כל הכפתורים לאחר בחירה
+          // נעל את כל הכפתורים, סמן את שנבחר
           btns.querySelectorAll(".option-btn").forEach(b => {
             b.disabled = true;
-            b.style.opacity = "0.5";
+            b.style.opacity = "0.45";
             b.style.cursor = "default";
           });
           btn.style.opacity = "1";
           btn.style.background = "var(--primary)";
           btn.style.color = "white";
-          inputEl.value = role;
-          send();
+
+          // הצג בועת משתמש עם הבחירה
+          addMessage("user", role);
+
+          // שמור את המסגרת — תצורף לשאלה הבאה
+          selectedRole = role;
+
+          // בועת בוט מקומית — בקש את השאלה (ללא API)
+          addMessage("bot", "מה השאלה שלך? אשמח לעזור.");
+
+          inputEl.focus();
         });
         btns.appendChild(btn);
       });
@@ -828,6 +838,7 @@
         // לא קריטי
       }
       sessionId = null;
+      selectedRole = null;
       // ניקוי כל ההודעות מהצ'אט פרט לכרטיס הפתיחה
       const welcome = messagesEl.querySelector(".welcome");
       messagesEl.innerHTML = "";
@@ -966,6 +977,13 @@
       addMessage("user", q);
       sendBtn.disabled = true;
 
+      // אם נבחרה מסגרת — צרף אותה לשאלה שנשלחת ל-API (לא מוצגת למשתמש)
+      let apiQuestion = q;
+      if (selectedRole) {
+        apiQuestion = `מסגרת/תפקיד: ${selectedRole}\n\n${q}`;
+        selectedRole = null;   // אפס לאחר שימוש
+      }
+
       const typing = addTyping();
       let botMsg = null;
       let botBubble = null;
@@ -976,7 +994,7 @@
         const r = await fetch("/api/chat/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: q, session_id: sessionId }),
+          body: JSON.stringify({ question: apiQuestion, session_id: sessionId }),
         });
 
         if (!r.ok) {
