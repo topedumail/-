@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
   <style>
     :root {
       --bg: #faf8f3;
@@ -828,9 +828,20 @@
       return { wrap, bubble };
     }
 
+    function renderMarkdown(text) {
+      if (typeof marked !== "undefined") {
+        return marked.parse(text);
+      }
+      // fallback: convert **bold** and line breaks without marked
+      return text
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\n/g, "<br>");
+    }
+
     function renderBubble(bubble, text, role) {
       if (role === "bot") {
-        bubble.innerHTML = marked.parse(text);
+        bubble.innerHTML = renderMarkdown(text);
       } else {
         bubble.textContent = text;
       }
