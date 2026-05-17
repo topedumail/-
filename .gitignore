@@ -12,3 +12,6 @@ backend/data/.embed_cache.pkl
 *.mov
 *.avi
 
+
+# Claude Code local server config (machine-specific paths)
+.claude/launch.json
