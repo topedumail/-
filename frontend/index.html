@@ -182,13 +182,153 @@
     main {
       flex: 1;
       display: flex;
-      flex-direction: column;
-      max-width: 1100px;
+      flex-direction: row;
+      gap: 16px;
+      max-width: 1280px;
       width: 100%;
       margin: 0 auto;
       padding: 24px;
       overflow: hidden;
+      position: relative;
     }
+
+    /* Sidebar — רשימת מקרים */
+    #sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--panel);
+      border: 1px solid var(--border-strong);
+      border-radius: 16px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    #newCaseBtn {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      transition: filter 0.15s, box-shadow 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    #newCaseBtn:hover { filter: brightness(1.1); box-shadow: var(--shadow-md); }
+    #newCaseBtn span { font-size: 18px; font-weight: 400; }
+
+    #caseList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+    #caseList::-webkit-scrollbar { width: 5px; }
+    #caseList::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+    .case-item {
+      padding: 11px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      transition: background 0.15s, border-color 0.15s;
+      border: 1.5px solid transparent;
+      position: relative;
+    }
+    .case-item:hover { background: var(--primary-soft); }
+    .case-item.active {
+      background: var(--primary-soft);
+      border-color: var(--primary);
+    }
+    .case-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      padding-left: 22px; /* מקום ל-X */
+    }
+    .case-meta {
+      font-size: 11.5px;
+      color: var(--text-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 6px;
+    }
+    .case-role {
+      background: white;
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--primary);
+      white-space: nowrap;
+      max-width: 60%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .case-time { color: var(--muted); font-size: 11px; }
+    .case-delete {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 0 6px;
+      line-height: 1;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s, background 0.15s;
+    }
+    .case-item:hover .case-delete { opacity: 0.6; }
+    .case-delete:hover { opacity: 1 !important; color: var(--error); background: var(--error-bg); }
+
+    .empty-cases {
+      padding: 28px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    #chatArea {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #sidebarOverlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 99;
+    }
+    .btn-sidebar-toggle { display: none; }
 
     /* Messages */
     #messages {
@@ -582,9 +722,32 @@
 
     /* ─── Responsive: Laptop / small desktop (max 1024px) ─── */
     @media (max-width: 1024px) {
-      main { padding: 16px 20px; }
+      main { padding: 16px 20px; gap: 12px; }
+      #sidebar { width: 240px; }
       .bubble-wrap { max-width: 88%; }
       .welcome p { font-size: 14.5px; }
+    }
+
+    /* ─── Sidebar slides in on small screens ─── */
+    @media (max-width: 860px) {
+      .btn-sidebar-toggle { display: flex !important; }
+      #sidebar {
+        position: fixed;
+        top: 0;
+        right: -320px;
+        bottom: 0;
+        width: 300px;
+        max-width: 85vw;
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0;
+        z-index: 100;
+        transition: right 0.25s cubic-bezier(0.4,0,0.2,1);
+        box-shadow: -8px 0 24px rgba(0,0,0,0.15);
+      }
+      body.sidebar-open #sidebar { right: 0; }
+      body.sidebar-open #sidebarOverlay { display: block; }
+      main { padding-right: 14px; padding-left: 14px; }
     }
 
     /* ─── Responsive: Tablet (max 768px) ─── */
@@ -693,10 +856,10 @@
         </div>
       </div>
       <div class="header-actions">
-        <div class="header-status" id="status">טוען...</div>
-        <button class="btn-refresh" onclick="newConversation()" title="התחלת שיחה חדשה — מאפס את הזיכרון של הבוט">
-          <span>💬</span> שיחה חדשה
+        <button class="btn-refresh btn-sidebar-toggle" onclick="toggleSidebar()" title="פתח/סגור רשימת מקרים">
+          <span>☰</span>
         </button>
+        <div class="header-status" id="status">טוען...</div>
         <button class="btn-refresh" onclick="reindex()" title="לקרוא מחדש את המסמכים מהתיקייה">
           <span>🔄</span> רענן מאגר
         </button>
@@ -705,18 +868,31 @@
   </header>
 
   <main>
-    <div id="messages">
-      <div class="welcome">
-        <div class="welcome-content">
-          <div class="welcome-greeting">ברוכים הבאים</div>
-          <h2>שלום, אני העוזר המקצועי של האגף</h2>
-          <p>מערכת ייעוץ ומענה מבוססת מסמכי האגף — פדגוגיה טיפולית, התערבות חינוכית, מסגרות וחוקים.</p>
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <button id="newCaseBtn" onclick="newConversation()">
+          <span>＋</span> מקרה חדש
+        </button>
+      </div>
+      <div id="caseList"></div>
+    </aside>
+
+    <div id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
+    <div id="chatArea">
+      <div id="messages">
+        <div class="welcome">
+          <div class="welcome-content">
+            <div class="welcome-greeting">ברוכים הבאים</div>
+            <h2>שלום, אני העוזר המקצועי של האגף</h2>
+            <p>מערכת ייעוץ ומענה מבוססת מסמכי האגף — פדגוגיה טיפולית, התערבות חינוכית, מסגרות וחוקים.</p>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="composer">
-      <textarea id="input" rows="2" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
-      <button id="send" onclick="send()">שלח</button>
+      <div class="composer">
+        <textarea id="input" rows="2" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
+        <button id="send" onclick="send()">שלח</button>
+      </div>
     </div>
   </main>
 
@@ -741,6 +917,162 @@
 
     let sessionId = null;
     let selectedRole = null;   // מסגרת שנבחרה — תצורף לשאלה הראשונה
+
+    // ─── ניהול מקרים (localStorage) ───
+    const CASES_KEY = "tofes_cases_v1";
+    let cases = [];
+    let activeCaseId = null;
+
+    try {
+      cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
+    } catch (e) { cases = []; }
+
+    function saveCases() {
+      try { localStorage.setItem(CASES_KEY, JSON.stringify(cases)); }
+      catch (e) { console.warn("נכשלה שמירה ל-localStorage:", e); }
+    }
+
+    function genId() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function getActiveCase() {
+      return cases.find(c => c.id === activeCaseId);
+    }
+
+    function createNewCase(role) {
+      const id = genId();
+      cases.unshift({
+        id,
+        title: role || "מקרה חדש",
+        role: role || null,
+        sessionId: null,
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+      activeCaseId = id;
+      saveCases();
+      renderCaseList();
+      return cases[0];
+    }
+
+    function addMessageToActiveCase(msg) {
+      const c = getActiveCase();
+      if (!c) return;
+      c.messages.push(msg);
+      c.updatedAt = Date.now();
+      // הכותרת נקבעת לפי השאלה האמיתית הראשונה של המשתמש
+      if ((!c._titleSet) && msg.role === "user" && msg.text && msg.text !== c.role) {
+        c.title = msg.text.length > 60 ? msg.text.slice(0, 60).trim() + "…" : msg.text;
+        c._titleSet = true;
+      }
+      c.sessionId = sessionId;
+      saveCases();
+      renderCaseList();
+    }
+
+    function deleteCase(id) {
+      const c = cases.find(x => x.id === id);
+      if (!c) return;
+      if (!confirm(`למחוק את המקרה "${c.title}"?`)) return;
+      cases = cases.filter(c => c.id !== id);
+      saveCases();
+      if (activeCaseId === id) {
+        activeCaseId = null;
+        sessionId = null;
+        clearChatView();
+        showRoleQuestion();
+      }
+      renderCaseList();
+    }
+
+    function clearChatView() {
+      const welcome = messagesEl.querySelector(".welcome");
+      messagesEl.innerHTML = "";
+      if (welcome) messagesEl.appendChild(welcome);
+    }
+
+    function switchToCase(id) {
+      const c = cases.find(x => x.id === id);
+      if (!c) return;
+      activeCaseId = id;
+      sessionId = c.sessionId || null;
+      selectedRole = null;
+
+      clearChatView();
+      if (c.messages.length === 0) {
+        showRoleQuestion();
+      } else {
+        c.messages.forEach(m => {
+          const { wrap, bubble } = buildMessage(m.role);
+          renderBubble(bubble, m.text, m.role);
+          if (m.matches && m.matches.length) attachSources(wrap, m.matches);
+        });
+        scrollToBottom(true);
+      }
+      renderCaseList();
+      toggleSidebar(false);  // סגור במובייל
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      const diff = (Date.now() - ts) / 1000;
+      if (diff < 60) return "עכשיו";
+      if (diff < 3600) return Math.floor(diff / 60) + " דק׳";
+      if (diff < 86400) return Math.floor(diff / 3600) + " שע׳";
+      if (diff < 604800) return Math.floor(diff / 86400) + " ימים";
+      return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
+    }
+
+    function shortRole(role) {
+      if (!role) return "—";
+      if (role.includes("שח\"ר")) return "שח״ר";
+      if (role.includes("קב\"ס") || role.includes("ביקור")) return "קב״ס";
+      if (role.includes("חירום") || role.includes("ייחודיות")) return "מסגרות";
+      if (role.includes("רווחה") || role.includes("קהילה")) return "קהילה";
+      if (role.includes("מו\"פ") || role.includes("פיתוח")) return "מו״פ";
+      return "אחר";
+    }
+
+    function renderCaseList() {
+      const list = document.getElementById("caseList");
+      if (!list) return;
+      if (cases.length === 0) {
+        list.innerHTML = '<div class="empty-cases">אין מקרים שמורים.<br>שיחות חדשות יישמרו כאן אוטומטית.</div>';
+        return;
+      }
+      list.innerHTML = cases.map(c => `
+        <div class="case-item ${c.id === activeCaseId ? 'active' : ''}" data-id="${c.id}">
+          <button class="case-delete" data-del="${c.id}" title="מחק מקרה">×</button>
+          <div class="case-title">${escapeHtml(c.title || "מקרה חדש")}</div>
+          <div class="case-meta">
+            <span class="case-role">${escapeHtml(shortRole(c.role))}</span>
+            <span class="case-time">${formatTime(c.updatedAt)}</span>
+          </div>
+        </div>
+      `).join("");
+
+      list.querySelectorAll(".case-item").forEach(el => {
+        el.addEventListener("click", e => {
+          if (e.target.dataset.del) return;
+          switchToCase(el.dataset.id);
+        });
+      });
+      list.querySelectorAll(".case-delete").forEach(btn => {
+        btn.addEventListener("click", e => {
+          e.stopPropagation();
+          deleteCase(btn.dataset.del);
+        });
+      });
+    }
+
+    function toggleSidebar(forceState) {
+      const willOpen = typeof forceState === "boolean"
+        ? forceState
+        : !document.body.classList.contains("sidebar-open");
+      document.body.classList.toggle("sidebar-open", willOpen);
+    }
 
     async function loadStatus() {
       try {
@@ -839,11 +1171,11 @@
       }
       sessionId = null;
       selectedRole = null;
-      // ניקוי כל ההודעות מהצ'אט פרט לכרטיס הפתיחה
-      const welcome = messagesEl.querySelector(".welcome");
-      messagesEl.innerHTML = "";
-      if (welcome) messagesEl.appendChild(welcome);
+      activeCaseId = null;     // המקרה הבא ייווצר בלחיצה על כפתור / שליחה ראשונה
+      clearChatView();
       showRoleQuestion();
+      renderCaseList();
+      toggleSidebar(false);
       inputEl.focus();
     }
 
@@ -974,7 +1306,14 @@
       const q = inputEl.value.trim();
       if (!q) return;
       inputEl.value = "";
+
+      // צור מקרה חדש אם זו ההודעה הראשונה בשיחה
+      if (!activeCaseId) {
+        createNewCase(selectedRole);
+      }
+
       addMessage("user", q);
+      addMessageToActiveCase({ role: "user", text: q });
       sendBtn.disabled = true;
 
       // אם נבחרה מסגרת — צרף אותה לשאלה שנשלחת ל-API (לא מוצגת למשתמש)
@@ -1045,9 +1384,17 @@
               if (botBubble) processOptionButtons(botBubble);
               if (botMsg && window._pendingMatches && !sourcesAttached) {
                 attachSources(botMsg, window._pendingMatches);
-                window._pendingMatches = null;
                 sourcesAttached = true;
               }
+              // שמור את תגובת הבוט במקרה
+              if (botFullText) {
+                addMessageToActiveCase({
+                  role: "bot",
+                  text: botFullText,
+                  matches: window._pendingMatches || null,
+                });
+              }
+              window._pendingMatches = null;
             }
           }
         }
@@ -1077,6 +1424,7 @@
     });
 
     loadStatus();
+    renderCaseList();
     showRoleQuestion();
     inputEl.focus();
   </script>
