@@ -600,6 +600,37 @@
       transform: translateX(-4px);
     }
 
+    /* Option buttons (role selection) */
+    .option-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 12px 0 4px;
+    }
+    .option-btn {
+      background: white;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: right;
+      font-weight: 600;
+      transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+      box-shadow: var(--shadow-sm);
+    }
+    .option-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateX(-3px);
+      box-shadow: var(--shadow-md);
+    }
+    .option-btn:active {
+      transform: translateX(0);
+    }
+
     /* Footer */
     footer {
       text-align: center;
@@ -828,6 +859,29 @@
       return { wrap, bubble };
     }
 
+    // זיהוי רשימת אפשרויות מסגרת והמרה לכפתורים
+    const ROLE_MARKERS = ["שח\"ר", "קב\"ס", "מרכזי חירום", "רווחה", "מו\"פ"];
+    function processOptionButtons(bubble) {
+      bubble.querySelectorAll("ul").forEach(ul => {
+        const items = [...ul.querySelectorAll("li")];
+        const matches = items.filter(li =>
+          ROLE_MARKERS.some(m => li.textContent.includes(m))
+        ).length;
+        if (matches >= 2) {
+          const container = document.createElement("div");
+          container.className = "option-btns";
+          items.forEach(li => {
+            const btn = document.createElement("button");
+            btn.className = "option-btn";
+            btn.textContent = li.textContent.trim();
+            btn.onclick = () => { inputEl.value = btn.textContent.trim(); send(); };
+            container.appendChild(btn);
+          });
+          ul.replaceWith(container);
+        }
+      });
+    }
+
     function renderMarkdown(text) {
       if (typeof marked !== "undefined") {
         return marked.parse(text);
@@ -842,6 +896,7 @@
     function renderBubble(bubble, text, role) {
       if (role === "bot") {
         bubble.innerHTML = renderMarkdown(text);
+        processOptionButtons(bubble);
       } else {
         bubble.textContent = text;
       }
@@ -962,6 +1017,7 @@
               botBubble.innerHTML = marked.parse(botFullText);
               messagesEl.scrollTop = messagesEl.scrollHeight;
             } else if (event.type === "done") {
+              if (botBubble) processOptionButtons(botBubble);
               if (botMsg && window._pendingMatches && !sourcesAttached) {
                 attachSources(botMsg, window._pendingMatches);
                 window._pendingMatches = null;
