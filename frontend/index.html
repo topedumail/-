@@ -710,8 +710,7 @@
         <div class="welcome-content">
           <div class="welcome-greeting">ברוכים הבאים</div>
           <h2>שלום, אני העוזר המקצועי של האגף</h2>
-          <p>פדגוגיה טיפולית מחברת בין תהליכי למידה והוראה לבין עולמו הרגשי של תלמיד שחווה כישלון, אכזבה או פגיעות. היא רואה בקשר בין פדגוגיה, טיפול ושיטות הוראה דרך לקדם הישגים לימודיים, לחזק תחושת מסוגלות, ביטחון ואמון, ולעזור לתלמיד להתפתח כלומד פעיל וכבוגר עצמאי, יציב ומצליח בחייו ובחברה לאורך זמן.</p>
-          <div class="examples-label">ניתן להזין שאלה חופשית ולקבל מענה המבוסס על מקורות מסמכי האגף.</div>
+          <p>מערכת ייעוץ ומענה מבוססת מסמכי האגף — פדגוגיה טיפולית, התערבות חינוכית, מסגרות וחוקים.</p>
         </div>
       </div>
     </div>
@@ -775,6 +774,51 @@
       }
     }
 
+    // ─── שאלת פתיחה: בחירת מסגרת/תפקיד ───
+    const ROLES = [
+      'כיתות ותוכניות שח"ר',
+      'ביקור סדיר / מניעת נשירה / קב"ס',
+      'מסגרות ייחודיות / מסגרות חוץ־ביתיות / מרכזי חירום',
+      'קהילה, רווחה והורות',
+      'מו"פ / פיתוח מקצועי',
+      'אחר'
+    ];
+
+    function showRoleQuestion() {
+      const { wrap, bubble } = buildMessage("bot");
+
+      const intro = document.createElement("p");
+      intro.style.cssText = "margin: 0 0 14px; font-weight: 500;";
+      intro.textContent = "כדי שאוכל לנתח את המקרה נכון לפי ההקשר המקצועי, אנא בחר/י את המסגרת או התפקיד שלך:";
+      bubble.appendChild(intro);
+
+      const btns = document.createElement("div");
+      btns.className = "option-btns";
+
+      ROLES.forEach(role => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = role;
+        btn.addEventListener("click", () => {
+          // נעל את כל הכפתורים לאחר בחירה
+          btns.querySelectorAll(".option-btn").forEach(b => {
+            b.disabled = true;
+            b.style.opacity = "0.5";
+            b.style.cursor = "default";
+          });
+          btn.style.opacity = "1";
+          btn.style.background = "var(--primary)";
+          btn.style.color = "white";
+          inputEl.value = role;
+          send();
+        });
+        btns.appendChild(btn);
+      });
+
+      bubble.appendChild(btns);
+      scrollToBottom(true);
+    }
+
     async function newConversation() {
       try {
         await fetch("/api/session/reset?session_id=" + encodeURIComponent(sessionId || ""), {
@@ -784,11 +828,11 @@
         // לא קריטי
       }
       sessionId = null;
-      // ניקוי כל ההודעות מהצ'אט פרט להודעת הפתיחה
+      // ניקוי כל ההודעות מהצ'אט פרט לכרטיס הפתיחה
       const welcome = messagesEl.querySelector(".welcome");
       messagesEl.innerHTML = "";
       if (welcome) messagesEl.appendChild(welcome);
-      addMessage("bot", "💬 התחלנו שיחה חדשה. הזיכרון של הבוט אופס.");
+      showRoleQuestion();
       inputEl.focus();
     }
 
@@ -1015,6 +1059,7 @@
     });
 
     loadStatus();
+    showRoleQuestion();
     inputEl.focus();
   </script>
 </body>
