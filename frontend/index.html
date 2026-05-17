@@ -229,6 +229,21 @@
     #newCaseBtn:hover { filter: brightness(1.1); box-shadow: var(--shadow-md); }
     #newCaseBtn span { font-size: 18px; font-weight: 400; }
 
+    #changeRoleBtn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: transparent;
+      color: var(--text-soft);
+      border: none;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s;
+    }
+    #changeRoleBtn:hover { color: var(--primary); background: var(--primary-soft); }
+
     #caseList {
       flex: 1;
       overflow-y: auto;
@@ -873,6 +888,9 @@
         <button id="newCaseBtn" onclick="newConversation()">
           <span>＋</span> מקרה חדש
         </button>
+        <button id="changeRoleBtn" onclick="changeRole()" title="לשנות את התפקיד/המסגרת">
+          שנה תפקיד
+        </button>
       </div>
       <div id="caseList"></div>
     </aside>
@@ -920,8 +938,10 @@
 
     // ─── ניהול מקרים (localStorage) ───
     const CASES_KEY = "tofes_cases_v1";
+    const USER_ROLE_KEY = "tofes_user_role_v1";
     let cases = [];
     let activeCaseId = null;
+    let userRole = localStorage.getItem(USER_ROLE_KEY) || null;  // תפקיד קבוע — נשאל פעם אחת בלבד
 
     try {
       cases = JSON.parse(localStorage.getItem(CASES_KEY) || "[]");
@@ -1067,6 +1087,19 @@
       });
     }
 
+    function changeRole() {
+      if (!confirm("לשנות את התפקיד/המסגרת? תישאל/י שוב את שאלת הפתיחה.")) return;
+      userRole = null;
+      selectedRole = null;
+      localStorage.removeItem(USER_ROLE_KEY);
+      activeCaseId = null;
+      sessionId = null;
+      clearChatView();
+      showRoleQuestion();
+      renderCaseList();
+      toggleSidebar(false);
+    }
+
     function toggleSidebar(forceState) {
       const willOpen = typeof forceState === "boolean"
         ? forceState
@@ -1118,6 +1151,18 @@
     ];
 
     function showRoleQuestion() {
+      // אם המשתמש כבר בחר תפקיד בעבר — לא נשאל שוב, רק נציע להתחיל
+      if (userRole) {
+        selectedRole = userRole;   // ייצורף לשאלה הראשונה
+        const { wrap, bubble } = buildMessage("bot");
+        const p = document.createElement("p");
+        p.style.cssText = "margin: 0; font-weight: 500;";
+        p.textContent = "שלום! מה השאלה שלך? אשמח לעזור.";
+        bubble.appendChild(p);
+        scrollToBottom(true);
+        return;
+      }
+
       const { wrap, bubble } = buildMessage("bot");
 
       const intro = document.createElement("p");
@@ -1146,8 +1191,10 @@
           // הצג בועת משתמש עם הבחירה
           addMessage("user", role);
 
-          // שמור את המסגרת — תצורף לשאלה הבאה
+          // שמור את המסגרת לקבע (לא נשאל שוב)
           selectedRole = role;
+          userRole = role;
+          localStorage.setItem(USER_ROLE_KEY, role);
 
           // בועת בוט מקומית — בקש את השאלה (ללא API)
           addMessage("bot", "מה השאלה שלך? אשמח לעזור.");
