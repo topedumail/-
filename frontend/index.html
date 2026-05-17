@@ -200,7 +200,6 @@
       border-radius: 16px;
       margin-bottom: 16px;
       box-shadow: var(--shadow-md);
-      scroll-behavior: smooth;
     }
     #messages { scrollbar-width: none; }
     #messages::-webkit-scrollbar { display: none; }
@@ -701,6 +700,15 @@
     const sendBtn = document.getElementById("send");
     const statusEl = document.getElementById("status");
 
+    // גלילה חכמה — גולל למטה רק אם המשתמש כבר קרוב לתחתית
+    function scrollToBottom(force = false) {
+      const threshold = 120; // פיקסלים מהתחתית
+      const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < threshold;
+      if (force || nearBottom) {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      }
+    }
+
     let sessionId = null;
 
     async function loadStatus() {
@@ -779,7 +787,7 @@
       bubbleWrap.appendChild(bubble);
       wrap.appendChild(bubbleWrap);
       messagesEl.appendChild(wrap);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      scrollToBottom(true); // הודעה חדשה — גולל תמיד
       return { wrap, bubble };
     }
 
@@ -830,7 +838,7 @@
       const { wrap, bubble } = buildMessage(role);
       renderBubble(bubble, text, role);
       if (matches && matches.length) attachSources(wrap, matches);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      scrollToBottom();
       return { wrap, bubble };
     }
 
@@ -872,7 +880,7 @@
           </div>
         </div>`;
       messagesEl.appendChild(wrap);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
+      scrollToBottom();
       return wrap;
     }
 
@@ -939,7 +947,7 @@
               }
               botFullText += event.text;
               botBubble.innerHTML = marked.parse(botFullText);
-              messagesEl.scrollTop = messagesEl.scrollHeight;
+              scrollToBottom();
             } else if (event.type === "done") {
               if (botBubble) processOptionButtons(botBubble);
               if (botMsg && window._pendingMatches && !sourcesAttached) {
