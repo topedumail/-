@@ -334,6 +334,141 @@
       flex-direction: column;
       overflow: hidden;
       min-width: 0;
+      position: relative;
+    }
+
+    /* Message hover actions (copy button under bot bubble) */
+    .msg-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+      margin-right: 46px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .msg.bot:hover .msg-actions,
+    .msg.bot:focus-within .msg-actions { opacity: 1; }
+    .msg-actions button {
+      background: white;
+      border: 1px solid var(--border-strong);
+      color: var(--text-soft);
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-size: 11.5px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      line-height: 1.4;
+    }
+    .msg-actions button:hover {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+    .msg-actions button.copied {
+      background: #ecfdf5;
+      color: var(--success);
+      border-color: #a7f3d0;
+    }
+    .msg-actions svg { flex-shrink: 0; }
+
+    /* Floating "scroll to bottom" button */
+    .scroll-bottom-fab {
+      position: absolute;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: white;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.15s;
+      z-index: 5;
+    }
+    .scroll-bottom-fab.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .scroll-bottom-fab:hover {
+      box-shadow: 0 6px 18px rgba(30, 58, 138, 0.25);
+    }
+
+    /* Case search */
+    .case-search-wrap {
+      padding: 10px 14px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    #caseSearch {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    }
+    #caseSearch:focus {
+      border-color: var(--primary);
+      background: white;
+      box-shadow: 0 0 0 3px var(--primary-glow);
+    }
+    #caseSearch::placeholder { color: var(--muted); }
+
+    /* Stop generation state on send button */
+    #send.streaming {
+      background: #dc2626;
+      animation: pulseStop 1.6s ease-in-out infinite;
+    }
+    #send.streaming:hover:not(:disabled) {
+      filter: brightness(1.08);
+      box-shadow: 0 4px 14px rgba(220, 38, 38, 0.4);
+    }
+    @keyframes pulseStop {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+      50%       { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.15); }
+    }
+
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: var(--text);
+      color: white;
+      padding: 11px 22px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: var(--shadow-lg);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      z-index: 2000;
+      max-width: 90vw;
+    }
+    .toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
 
     #sidebarOverlay {
@@ -361,6 +496,13 @@
       scrollbar-color: var(--border-strong) transparent;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
+      scroll-behavior: smooth;
+    }
+    /* Keyboard focus styles */
+    button:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
     #messages::-webkit-scrollbar { width: 5px; }
     #messages::-webkit-scrollbar-track { background: transparent; }
@@ -370,11 +512,26 @@
       margin-bottom: 24px;
       display: flex;
       flex-direction: column;
-      animation: fadeIn 0.15s ease-out;
+      animation: msgSlideIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
+    @keyframes msgSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    /* Streaming cursor */
+    .streaming-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 0.88em;
+      background: var(--primary);
+      margin-right: 3px;
+      vertical-align: text-bottom;
+      border-radius: 1px;
+      animation: cursorBlink 0.75s step-end infinite;
+    }
+    @keyframes cursorBlink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
     }
     .msg.user { align-items: flex-end; }
     .msg.bot  { align-items: flex-start; }
@@ -574,7 +731,7 @@
       font-size: 15px;
     }
     #send {
-      padding: 0 28px;
+      padding: 0 22px;
       height: 52px;
       background: var(--primary);
       color: white;
@@ -584,14 +741,37 @@
       font-weight: 700;
       font-family: inherit;
       cursor: pointer;
-      transition: background 0.15s, filter 0.15s;
-      min-width: 100px;
+      transition: background 0.15s, filter 0.15s, box-shadow 0.15s;
+      min-width: 90px;
       justify-content: center;
       display: flex;
       align-items: center;
+      gap: 7px;
     }
     #send:hover:not(:disabled) {
-      filter: brightness(1.1);
+      box-shadow: 0 4px 14px rgba(30, 58, 138, 0.35);
+    }
+    /* Auto-growing textarea */
+    #input {
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    /* Sidebar role indicator */
+    #sidebarRoleIndicator {
+      margin-top: 8px;
+      padding: 6px 10px;
+      background: var(--accent-soft);
+      border: 1px solid #f3d19e;
+      border-radius: 8px;
+      font-size: 11.5px;
+      color: #9a5c10;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+      line-height: 1.4;
+    }
+    #send:hover:not(:disabled) {
+      filter: brightness(1.08);
     }
     #send:disabled {
       opacity: 0.5;
@@ -891,6 +1071,10 @@
         <button id="changeRoleBtn" onclick="changeRole()" title="לשנות את התפקיד/המסגרת">
           שנה תפקיד
         </button>
+        <div id="sidebarRoleIndicator"></div>
+      </div>
+      <div class="case-search-wrap">
+        <input id="caseSearch" type="search" placeholder="חיפוש מקרים..." aria-label="חיפוש מקרים" />
       </div>
       <div id="caseList"></div>
     </aside>
@@ -904,15 +1088,31 @@
             <div class="welcome-greeting">ברוכים הבאים</div>
             <h2>שלום, אני העוזר המקצועי של האגף</h2>
             <p>פדגוגיה טיפולית מחברת בין תהליכי למידה והוראה לבין עולמו הרגשי של תלמיד שחווה כישלון, אכזבה או פגיעות. היא רואה בקשר בין פדגוגיה, טיפול ושיטות הוראה דרך לקדם הישגים לימודיים, לחזק תחושת מסוגלות, ביטחון ואמון, ולעזור לתלמיד להתפתח כלומד פעיל וכבוגר עצמאי, יציב ומצליח בחייו ובחברה לאורך זמן.</p>
+            <div class="examples-label">שאלות לדוגמה — לחץ/י להתחלה מהירה:</div>
+            <div class="examples">
+              <button class="example-chip" onclick="askExample(this)">כיצד מתמודדים עם תלמיד שמסרב להיכנס לכיתה?</button>
+              <button class="example-chip" onclick="askExample(this)">מהם הסימנים המוקדמים לנשירה ממסגרת?</button>
+              <button class="example-chip" onclick="askExample(this)">כיצד לנהל שיחת הורים במצב של משבר?</button>
+              <button class="example-chip" onclick="askExample(this)">מה עקרונות ההוראה בפדגוגיה טיפולית?</button>
+            </div>
           </div>
         </div>
       </div>
+      <button id="scrollBottomFab" class="scroll-bottom-fab" type="button" aria-label="גלול לתחתית">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        הודעות חדשות
+      </button>
       <div class="composer">
         <textarea id="input" rows="2" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
-        <button id="send" onclick="send()">שלח</button>
+        <button id="send" onclick="handleSendClick()" aria-label="שלח הודעה">
+          <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <span id="sendLabel">שלח</span>
+        </button>
       </div>
     </div>
   </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <footer>
     <strong>הודעת אמינות:</strong> תשובות הבוט מבוססות על המסמכים הרשמיים של האגף. בנושאים רגישים או החלטות מקצועיות — מומלץ לאמת עם הגורם הממונה.
@@ -923,6 +1123,36 @@
     const inputEl = document.getElementById("input");
     const sendBtn = document.getElementById("send");
     const statusEl = document.getElementById("status");
+    const scrollFab = document.getElementById("scrollBottomFab");
+    const toastEl = document.getElementById("toast");
+
+    // ─── Toast notifications ───
+    let toastTimer = null;
+    function showToast(msg, duration = 2200) {
+      if (!toastEl) return;
+      toastEl.textContent = msg;
+      toastEl.classList.add("visible");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("visible"), duration);
+    }
+
+    // ─── Copy bot message ───
+    async function copyBubbleText(bubble, btn) {
+      try {
+        const text = (bubble.innerText || "").trim();
+        if (!text) return;
+        await navigator.clipboard.writeText(text);
+        const originalHTML = btn.innerHTML;
+        btn.classList.add("copied");
+        btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> הועתק`;
+        setTimeout(() => {
+          btn.classList.remove("copied");
+          btn.innerHTML = originalHTML;
+        }, 1400);
+      } catch (e) {
+        showToast("ההעתקה נכשלה");
+      }
+    }
 
     // גלילה חכמה — גולל למטה רק אם המשתמש כבר קרוב לתחתית
     function scrollToBottom(force = false) {
@@ -931,6 +1161,21 @@
       if (force || nearBottom) {
         messagesEl.scrollTop = messagesEl.scrollHeight;
       }
+      updateScrollFab();
+    }
+
+    function updateScrollFab() {
+      if (!scrollFab) return;
+      const fromBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
+      scrollFab.classList.toggle("visible", fromBottom > 240);
+    }
+    if (messagesEl) {
+      messagesEl.addEventListener("scroll", updateScrollFab, { passive: true });
+    }
+    if (scrollFab) {
+      scrollFab.addEventListener("click", () => {
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      });
     }
 
     let sessionId = null;
@@ -1055,6 +1300,7 @@
       return "אחר";
     }
 
+    let caseFilter = "";
     function renderCaseList() {
       const list = document.getElementById("caseList");
       if (!list) return;
@@ -1062,7 +1308,15 @@
         list.innerHTML = '<div class="empty-cases">אין מקרים שמורים.<br>שיחות חדשות יישמרו כאן אוטומטית.</div>';
         return;
       }
-      list.innerHTML = cases.map(c => `
+      const visible = caseFilter
+        ? cases.filter(c => (c.title || "").toLowerCase().includes(caseFilter)
+                         || (c.role  || "").toLowerCase().includes(caseFilter))
+        : cases;
+      if (visible.length === 0) {
+        list.innerHTML = '<div class="empty-cases">לא נמצאו מקרים התואמים לחיפוש.</div>';
+        return;
+      }
+      list.innerHTML = visible.map(c => `
         <div class="case-item ${c.id === activeCaseId ? 'active' : ''}" data-id="${c.id}">
           <button class="case-delete" data-del="${c.id}" title="מחק מקרה">×</button>
           <div class="case-title">${escapeHtml(c.title || "מקרה חדש")}</div>
@@ -1096,8 +1350,20 @@
       sessionId = null;
       clearChatView();
       showRoleQuestion();
+      updateRoleIndicator();
       renderCaseList();
       toggleSidebar(false);
+    }
+
+    function updateRoleIndicator() {
+      const el = document.getElementById("sidebarRoleIndicator");
+      if (!el) return;
+      if (userRole) {
+        el.style.display = "block";
+        el.textContent = "👤 " + userRole;
+      } else {
+        el.style.display = "none";
+      }
     }
 
     function toggleSidebar(forceState) {
@@ -1133,7 +1399,7 @@
         }
         const data = await r.json();
         statusEl.innerHTML = `${data.documents} מסמכים · ${data.chunks} קטעים`;
-        addMessage("bot", `✅ המאגר רוענן: ${data.documents} מסמכים, ${data.chunks} קטעים.`);
+        showToast(`המאגר רוענן · ${data.documents} מסמכים`);
       } catch (e) {
         statusEl.innerHTML = original;
         addMessage("error", "שגיאת רשת בעת רענון.");
@@ -1195,6 +1461,7 @@
           selectedRole = role;
           userRole = role;
           localStorage.setItem(USER_ROLE_KEY, role);
+          updateRoleIndicator();
 
           // בועת בוט מקומית — בקש את השאלה (ללא API)
           addMessage("bot", "מה השאלה שלך? אשמח לעזור.");
@@ -1251,6 +1518,20 @@
       bubble.className = "bubble";
       bubbleWrap.appendChild(bubble);
       wrap.appendChild(bubbleWrap);
+
+      // Hover-revealed "copy" action under bot bubbles
+      if (role === "bot") {
+        const actions = document.createElement("div");
+        actions.className = "msg-actions";
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.setAttribute("aria-label", "העתק תשובה");
+        copyBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> העתק`;
+        copyBtn.onclick = () => copyBubbleText(bubble, copyBtn);
+        actions.appendChild(copyBtn);
+        wrap.appendChild(actions);
+      }
+
       messagesEl.appendChild(wrap);
       scrollToBottom(true); // הודעה חדשה — גולל תמיד
       return { wrap, bubble };
@@ -1341,7 +1622,7 @@
           <div class="avatar">מ׳</div>
           <div class="bubble">
             <div class="typing">
-              <span>מחפש במאגר</span>
+              <span>חושב ומנתח...</span>
               <div class="typing-dots"><span></span><span></span><span></span></div>
             </div>
           </div>
@@ -1351,10 +1632,38 @@
       return wrap;
     }
 
+    let currentAbortController = null;
+    function setStreamingState(streaming) {
+      const icon = document.getElementById("sendIcon");
+      const label = document.getElementById("sendLabel");
+      if (streaming) {
+        sendBtn.classList.add("streaming");
+        sendBtn.setAttribute("aria-label", "עצור יצירה");
+        if (icon) icon.outerHTML = '<svg id="sendIcon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+        if (label) label.textContent = "עצור";
+      } else {
+        sendBtn.classList.remove("streaming");
+        sendBtn.setAttribute("aria-label", "שלח הודעה");
+        const ic = document.getElementById("sendIcon");
+        if (ic) ic.outerHTML = '<svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
+        const lb = document.getElementById("sendLabel");
+        if (lb) lb.textContent = "שלח";
+      }
+    }
+    function handleSendClick() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+        showToast("היצירה הופסקה");
+      } else {
+        send();
+      }
+    }
+
     async function send() {
       const q = inputEl.value.trim();
       if (!q) return;
       inputEl.value = "";
+      inputEl.style.height = "auto";
 
       // צור מקרה חדש אם זו ההודעה הראשונה בשיחה
       if (!activeCaseId) {
@@ -1363,7 +1672,8 @@
 
       addMessage("user", q);
       addMessageToActiveCase({ role: "user", text: q });
-      sendBtn.disabled = true;
+      currentAbortController = new AbortController();
+      setStreamingState(true);
 
       // אם נבחרה מסגרת — צרף אותה לשאלה שנשלחת ל-API (לא מוצגת למשתמש)
       let apiQuestion = q;
@@ -1383,6 +1693,7 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: apiQuestion, session_id: sessionId }),
+          signal: currentAbortController.signal,
         });
 
         if (!r.ok) {
@@ -1428,9 +1739,17 @@
               }
               botFullText += event.text;
               botBubble.innerHTML = marked.parse(botFullText);
+              // Append blinking cursor while streaming
+              const cur = document.createElement("span");
+              cur.className = "streaming-cursor";
+              botBubble.appendChild(cur);
               scrollToBottom();
             } else if (event.type === "done") {
-              if (botBubble) processOptionButtons(botBubble);
+              // Final clean render — removes streaming cursor
+              if (botBubble) {
+                botBubble.innerHTML = marked.parse(botFullText);
+                processOptionButtons(botBubble);
+              }
               if (botMsg && window._pendingMatches && !sourcesAttached) {
                 attachSources(botMsg, window._pendingMatches);
                 sourcesAttached = true;
@@ -1456,11 +1775,28 @@
           window._pendingMatches = null;
         }
       } catch (e) {
-        if (botMsg) botMsg.remove();
-        typing.remove();
-        addMessage("error", "שגיאה ברשת: " + e.message);
+        if (e.name === "AbortError") {
+          typing.remove();
+          if (botBubble) {
+            botBubble.innerHTML = marked.parse(botFullText || "_(תשובה הופסקה)_");
+            processOptionButtons(botBubble);
+          }
+          if (botFullText) {
+            addMessageToActiveCase({
+              role: "bot",
+              text: botFullText,
+              matches: window._pendingMatches || null,
+            });
+          }
+          window._pendingMatches = null;
+        } else {
+          if (botMsg) botMsg.remove();
+          typing.remove();
+          addMessage("error", "שגיאה ברשת: " + e.message);
+        }
       } finally {
-        sendBtn.disabled = false;
+        currentAbortController = null;
+        setStreamingState(false);
         inputEl.focus();
       }
     }
@@ -1472,9 +1808,27 @@
       }
     });
 
+    // Auto-grow textarea
+    function autoGrowInput() {
+      inputEl.style.height = "auto";
+      inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + "px";
+    }
+    inputEl.addEventListener("input", autoGrowInput);
+
+    // Case search filter
+    const caseSearchEl = document.getElementById("caseSearch");
+    if (caseSearchEl) {
+      caseSearchEl.addEventListener("input", e => {
+        caseFilter = (e.target.value || "").trim().toLowerCase();
+        renderCaseList();
+      });
+    }
+
     loadStatus();
     renderCaseList();
+    updateRoleIndicator();
     showRoleQuestion();
+    updateScrollFab();
     inputEl.focus();
   </script>
 </body>
