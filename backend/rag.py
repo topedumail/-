@@ -24,6 +24,34 @@ EMBED_MODEL = "text-embedding-3-large"  # 3072-dim, איכות גבוהה בעב
 BATCH_SIZE = 100
 RRF_K = 60  # קבוע סטנדרטי ל-Reciprocal Rank Fusion
 RETRIEVE_PER_METHOD = 20  # כמה תוצאות לקחת מכל שיטה לפני שילוב
+MIN_MEANINGFUL_RATIO = 0.45  # מינימום יחס תווים משמעותיים לסינון chunks זבל
+
+
+def _is_garbage_chunk(text: str, source: str = "") -> bool:
+    """מזהה chunks עם טקסט מקולקל — PDF סרוק ללא OCR, קידוד שגוי וכד'.
+
+    יוריסטיקה:
+    1. אם המקור בעברית והטקסט בלי שום עברית → זבל.
+    2. בודק יחס "מילים אמיתיות" (רצף תווים אלפא 3+) ל-token-ים.
+    """
+    if len(text) < 60:
+        return False
+
+    hebrew = sum(1 for c in text if "א" <= c <= "ת")
+    source_has_hebrew = any("א" <= c <= "ת" for c in source)
+
+    # 1. מקור בעברית — אם אין שום עברית בתוכן, זה זבל
+    if source_has_hebrew and hebrew == 0:
+        return True
+
+    # 2. בדיקת מבנה מילים — חייב להיות יחס סביר של מילים אמיתיות
+    tokens = re.findall(r"\S+", text)
+    if len(tokens) >= 8:
+        real_words = sum(1 for tok in tokens if re.search(r"[א-תA-Za-z]{3,}", tok))
+        if (real_words / len(tokens)) < 0.4:
+            return True
+
+    return False
 
 
 @dataclass
@@ -97,6 +125,13 @@ class HybridIndex:
         """בונה את האינדקס מתיקיית הידע. מחזיר סיכום."""
         docs = load_documents(knowledge_dir)
         chunks = build_chunks(docs)
+
+        # סינון chunks עם טקסט זבל (PDF סרוקים ללא OCR, קידוד שגוי)
+        before = len(chunks)
+        chunks = [c for c in chunks if not _is_garbage_chunk(c.text, c.source)]
+        filtered = before - len(chunks)
+        if filtered:
+            print(f"[rag] סוננו {filtered} chunks עם טקסט מקולקל.")
 
         if not chunks:
             self.chunks = []

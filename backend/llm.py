@@ -162,6 +162,21 @@ class ChatSession:
     def to_messages(self) -> list[dict]:
         return [{"role": t.role, "content": t.content} for t in self.history]
 
+    def to_dict_list(self) -> list[dict]:
+        """לסריאליזציה ב-SQLite."""
+        return [{"role": t.role, "content": t.content} for t in self.history]
+
+    @classmethod
+    def from_dict_list(cls, data: list[dict]) -> "ChatSession":
+        """שחזור מ-SQLite."""
+        session = cls()
+        session.history = [
+            ChatTurn(role=d["role"], content=d["content"])
+            for d in data
+            if d.get("role") in ("user", "assistant")
+        ]
+        return session
+
 
 def _format_context(results: list[SearchResult]) -> str:
     parts = []
@@ -214,6 +229,32 @@ def stream_answer(
             full_answer += delta
             yield delta
     return full_answer
+
+
+def generate_followups(client: OpenAI, question: str, answer: str) -> list[str]:
+    """מייצר עד 3 שאלות המשך קצרות — קריאה מהירה ל-gpt-4o-mini."""
+    try:
+        prompt = (
+            "בהתבסס על השאלה והתשובה הבאות, כתוב בדיוק 3 שאלות המשך רלוונטיות.\n"
+            "חוקים: כל שאלה בשורה נפרדת. עד 10 מילים לשאלה. ללא מספור. ללא הסבר.\n\n"
+            f"שאלה: {question[:300]}\n"
+            f"תשובה: {answer[:600]}"
+        )
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=150,
+        )
+        raw = resp.choices[0].message.content or ""
+        lines = [
+            ln.strip().lstrip("•-–*123456789.) ").strip()
+            for ln in raw.strip().splitlines()
+            if ln.strip()
+        ]
+        return [q for q in lines if len(q) > 4][:3]
+    except Exception:
+        return []
 
 
 def answer_question(

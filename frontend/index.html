@@ -205,9 +205,147 @@
       overflow: hidden;
     }
     .sidebar-header {
-      padding: 14px;
+      padding: 14px 14px 12px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      z-index: 3;
+      background: linear-gradient(180deg, #f8f9ff 0%, white 100%);
+    }
+    .sidebar-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      padding: 0 2px;
+    }
+
+    /* ─── Sidebar role panel ─── */
+    .role-panel {
+      padding: 12px 14px 14px;
       border-bottom: 1px solid var(--border);
     }
+
+    /* --- Collapsed: selected role chip --- */
+    .role-selected-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--primary-soft);
+      border: 1.5px solid var(--primary);
+      border-radius: 10px;
+      padding: 9px 12px;
+    }
+    .role-selected-icon {
+      width: 30px;
+      height: 30px;
+      background: var(--primary);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .role-selected-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .role-selected-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 1px;
+    }
+    .role-selected-name {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .role-change-btn {
+      background: transparent;
+      border: 1px solid #c7d2fe;
+      color: var(--primary);
+      padding: 4px 9px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .role-change-btn:hover {
+      background: white;
+      border-color: var(--primary);
+    }
+
+    /* --- Expanded: all role options --- */
+    .role-panel-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 8px;
+      padding: 0 2px;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+    .role-options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .role-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      text-align: right;
+      background: white;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      padding: 8px 11px;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      font-weight: 500;
+      line-height: 1.35;
+    }
+    .role-option:hover {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: #c7d2fe;
+    }
+    .role-option.selected {
+      background: var(--primary-soft);
+      color: var(--primary);
+      border-color: var(--primary);
+      font-weight: 700;
+    }
+    .role-option-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border-strong);
+      flex-shrink: 0;
+      transition: background 0.12s;
+    }
+    .role-option:hover .role-option-dot,
+    .role-option.selected .role-option-dot {
+      background: var(--primary);
+    }
+
     #newCaseBtn {
       width: 100%;
       padding: 12px 14px;
@@ -229,59 +367,50 @@
     #newCaseBtn:hover { filter: brightness(1.1); box-shadow: var(--shadow-md); }
     #newCaseBtn span { font-size: 18px; font-weight: 400; }
 
-    #changeRoleBtn {
-      width: 100%;
-      margin-top: 8px;
-      padding: 6px 10px;
-      background: transparent;
-      color: var(--text-soft);
-      border: none;
-      border-radius: 6px;
-      font-family: inherit;
-      font-size: 12px;
-      cursor: pointer;
-      transition: color 0.15s, background 0.15s;
-    }
-    #changeRoleBtn:hover { color: var(--primary); background: var(--primary-soft); }
+    /* #changeRoleBtn removed — role change is inside the role panel card */
 
     #caseList {
       flex: 1;
       overflow-y: auto;
-      padding: 8px;
+      padding: 6px 8px 10px;
       scrollbar-width: thin;
       scrollbar-color: var(--border-strong) transparent;
     }
-    #caseList::-webkit-scrollbar { width: 5px; }
+    #caseList::-webkit-scrollbar { width: 4px; }
     #caseList::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
 
     .case-item {
-      padding: 11px 12px;
+      padding: 10px 12px;
       border-radius: 10px;
       cursor: pointer;
-      margin-bottom: 4px;
-      transition: background 0.15s, border-color 0.15s;
+      margin-bottom: 3px;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
       border: 1.5px solid transparent;
       position: relative;
     }
-    .case-item:hover { background: var(--primary-soft); }
+    .case-item:hover {
+      background: var(--primary-soft);
+      border-color: #dde5ff;
+    }
     .case-item.active {
       background: var(--primary-soft);
       border-color: var(--primary);
+      box-shadow: 0 1px 6px var(--primary-glow);
     }
     .case-title {
-      font-size: 13.5px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--text);
-      margin-bottom: 6px;
-      line-height: 1.45;
+      margin-bottom: 5px;
+      line-height: 1.4;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      padding-left: 22px; /* מקום ל-X */
+      padding-left: 24px; /* מקום ל-X */
     }
     .case-meta {
-      font-size: 11.5px;
+      font-size: 11px;
       color: var(--text-soft);
       display: flex;
       justify-content: space-between;
@@ -289,43 +418,68 @@
       gap: 6px;
     }
     .case-role {
-      background: white;
-      border: 1px solid var(--border);
+      background: var(--primary-soft);
+      border: 1px solid #c7d2fe;
       padding: 2px 8px;
       border-radius: 999px;
-      font-size: 10.5px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 700;
       color: var(--primary);
       white-space: nowrap;
-      max-width: 60%;
+      max-width: 65%;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .case-time { color: var(--muted); font-size: 11px; }
+    .case-time {
+      color: var(--muted);
+      font-size: 10.5px;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
     .case-delete {
       position: absolute;
-      top: 8px;
-      left: 8px;
+      top: 7px;
+      left: 7px;
       background: transparent;
       border: none;
       color: var(--muted);
       cursor: pointer;
-      font-size: 18px;
-      padding: 0 6px;
+      font-size: 15px;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       line-height: 1;
-      border-radius: 4px;
+      border-radius: 5px;
       opacity: 0;
       transition: opacity 0.15s, color 0.15s, background 0.15s;
     }
-    .case-item:hover .case-delete { opacity: 0.6; }
+    .case-item:hover .case-delete { opacity: 0.55; }
     .case-delete:hover { opacity: 1 !important; color: var(--error); background: var(--error-bg); }
 
     .empty-cases {
-      padding: 28px 16px;
+      padding: 24px 16px;
       text-align: center;
       color: var(--muted);
-      font-size: 13px;
-      line-height: 1.7;
+      font-size: 12.5px;
+      line-height: 1.75;
+    }
+    .empty-cases::before {
+      content: "💬";
+      display: block;
+      font-size: 24px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+    .more-cases-hint {
+      padding: 4px 10px 8px;
+      font-size: 11px;
+      color: var(--primary);
+      text-align: center;
+      line-height: 1.5;
+      font-weight: 500;
     }
 
     #chatArea {
@@ -418,12 +572,25 @@
 
     /* Case search */
     .case-search-wrap {
-      padding: 10px 14px 12px;
+      padding: 10px 12px 10px;
       border-bottom: 1px solid var(--border);
+    }
+    .case-search-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .case-search-icon {
+      position: absolute;
+      right: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      pointer-events: none;
+      line-height: 1;
     }
     #caseSearch {
       width: 100%;
-      padding: 8px 12px;
+      padding: 7px 32px 7px 12px;
       border: 1px solid var(--border-strong);
       border-radius: 8px;
       font-family: inherit;
@@ -439,6 +606,26 @@
       box-shadow: 0 0 0 3px var(--primary-glow);
     }
     #caseSearch::placeholder { color: var(--muted); }
+
+    .case-list-heading {
+      padding: 10px 14px 5px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .case-list-count {
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
 
     /* Stop generation state on send button */
     #send.streaming {
@@ -775,20 +962,7 @@
       max-height: 180px;
       overflow-y: auto;
     }
-    /* Sidebar role indicator */
-    #sidebarRoleIndicator {
-      margin-top: 8px;
-      padding: 6px 10px;
-      background: var(--accent-soft);
-      border: 1px solid #f3d19e;
-      border-radius: 8px;
-      font-size: 11.5px;
-      color: #9a5c10;
-      font-weight: 600;
-      text-align: center;
-      display: none;
-      line-height: 1.4;
-    }
+    /* #sidebarRoleIndicator removed — role display is inside the role panel card */
     #send:hover:not(:disabled) {
       filter: brightness(1.08);
     }
@@ -1084,16 +1258,21 @@
   <main>
     <aside id="sidebar">
       <div class="sidebar-header">
+        <div class="sidebar-title">ניהול שיחות</div>
         <button id="newCaseBtn" onclick="newConversation()">
-          <span>＋</span> מקרה חדש
+          <span>＋</span> שיחה חדשה
         </button>
-        <button id="changeRoleBtn" onclick="changeRole()" title="לשנות את התפקיד/המסגרת">
-          שנה תפקיד
-        </button>
-        <div id="sidebarRoleIndicator"></div>
       </div>
+      <div id="rolePanel" class="role-panel"></div>
       <div class="case-search-wrap">
-        <input id="caseSearch" type="search" placeholder="חיפוש מקרים..." aria-label="חיפוש מקרים" />
+        <div class="case-search-inner">
+          <span class="case-search-icon">🔍</span>
+          <input id="caseSearch" type="search" placeholder="חיפוש בהיסטוריה..." aria-label="חיפוש מקרים" />
+        </div>
+      </div>
+      <div class="case-list-heading">
+        <span>היסטוריה</span>
+        <span class="case-list-count" id="caseListCount"></span>
       </div>
       <div id="caseList"></div>
     </aside>
@@ -1343,26 +1522,35 @@
     let caseFilter = "";
     function renderCaseList() {
       const list = document.getElementById("caseList");
+      const countEl = document.getElementById("caseListCount");
       if (!list) return;
+
+      // עדכן מונה
+      if (countEl) countEl.textContent = cases.length > 0 ? cases.length : "";
+
       if (cases.length === 0) {
-        list.innerHTML = '<div class="empty-cases">אין מקרים שמורים.<br>שיחות חדשות יישמרו כאן אוטומטית.</div>';
+        list.innerHTML = '<div class="empty-cases">אין שיחות שמורות.<br>שיחות חדשות יישמרו כאן אוטומטית.</div>';
         return;
       }
       const visible = caseFilter
         ? cases.filter(c => (c.title || "").toLowerCase().includes(caseFilter)
                          || (c.role  || "").toLowerCase().includes(caseFilter))
-        : cases;
+        : cases.slice(0, 2);
       if (visible.length === 0) {
-        list.innerHTML = '<div class="empty-cases">לא נמצאו מקרים התואמים לחיפוש.</div>';
+        list.innerHTML = '<div class="empty-cases">לא נמצאו שיחות התואמות לחיפוש.</div>';
         return;
       }
-      list.innerHTML = visible.map(c => `
+      const extraCount = !caseFilter && cases.length > 2 ? cases.length - 2 : 0;
+      const extraHint = extraCount > 0
+        ? `<div class="more-cases-hint">🔍 חפשו בעוד ${extraCount} שיחות נוספות</div>`
+        : "";
+      list.innerHTML = extraHint + visible.map(c => `
         <div class="case-item ${c.id === activeCaseId ? 'active' : ''}" data-id="${c.id}">
-          <button class="case-delete" data-del="${c.id}" title="מחק מקרה">×</button>
-          <div class="case-title">${escapeHtml(c.title || "מקרה חדש")}</div>
+          <button class="case-delete" data-del="${c.id}" title="מחק שיחה">×</button>
+          <div class="case-title">${escapeHtml(c.title || "שיחה חדשה")}</div>
           <div class="case-meta">
             <span class="case-role">${escapeHtml(shortRole(c.role))}</span>
-            <span class="case-time">${formatTime(c.updatedAt)}</span>
+            <span class="case-time">🕐 ${formatTime(c.updatedAt)}</span>
           </div>
         </div>
       `).join("");
@@ -1381,30 +1569,88 @@
       });
     }
 
-    function changeRole() {
-      if (!confirm("לשנות את התפקיד/המסגרת? תישאל/י שוב את שאלת הפתיחה.")) return;
-      userRole = null;
-      selectedRole = null;
-      localStorage.removeItem(USER_ROLE_KEY);
-      activeCaseId = null;
-      sessionId = null;
-      clearChatView();
-      showRoleQuestion();
-      updateRoleIndicator();
-      renderCaseList();
-      toggleSidebar(false);
+    // ─── Role icons map ───
+    const ROLE_ICONS = {
+      'שח"ר':    '📚',
+      'קב"ס':    '🏫',
+      'מסגרות':  '🏠',
+      'קהילה':   '🤝',
+      'מו"פ':    '🔬',
+      'אחר':     '👤',
+    };
+    function getRoleIcon(role) {
+      if (!role) return '👤';
+      for (const [key, icon] of Object.entries(ROLE_ICONS)) {
+        if (role.includes(key)) return icon;
+      }
+      return '👤';
     }
 
-    function updateRoleIndicator() {
-      const el = document.getElementById("sidebarRoleIndicator");
-      if (!el) return;
-      if (userRole) {
-        el.style.display = "block";
-        el.textContent = "👤 " + userRole;
+    // ─── Role panel: collapsed (selected) or expanded (picker) ───
+    let rolePanelExpanded = false;
+
+    function buildRolePanel() {
+      const panel = document.getElementById("rolePanel");
+      if (!panel) return;
+
+      if (userRole && !rolePanelExpanded) {
+        // ── Collapsed: show selected role card ──
+        panel.innerHTML = `
+          <div class="role-selected-card">
+            <div class="role-selected-icon">${getRoleIcon(userRole)}</div>
+            <div class="role-selected-info">
+              <div class="role-selected-label">תפקיד נוכחי</div>
+              <div class="role-selected-name" title="${escapeHtml(userRole)}">${escapeHtml(userRole)}</div>
+            </div>
+            <button class="role-change-btn" id="expandRoleBtn" type="button">שנה</button>
+          </div>`;
+        document.getElementById("expandRoleBtn").addEventListener("click", () => {
+          rolePanelExpanded = true;
+          buildRolePanel();
+        });
       } else {
-        el.style.display = "none";
+        // ── Expanded: full picker ──
+        panel.innerHTML = `
+          <div class="role-panel-title">${userRole ? 'שנה תפקיד / מסגרת' : 'בחר/י תפקיד או מסגרת'}</div>
+          <div class="role-options-list">
+            ${ROLES.map(r => `
+              <button class="role-option${userRole === r ? ' selected' : ''}" type="button" data-role="${escapeHtml(r)}">
+                <span style="font-size:13px;flex-shrink:0">${getRoleIcon(r)}</span>
+                <span style="flex:1">${escapeHtml(r)}</span>
+                ${userRole === r ? '<span style="font-size:11px;color:var(--primary);font-weight:700">✓</span>' : ''}
+              </button>`).join('')}
+          </div>`;
+        panel.querySelectorAll(".role-option").forEach(btn => {
+          btn.addEventListener("click", () => selectRole(btn.dataset.role));
+        });
       }
     }
+
+    function selectRole(role) {
+      if (!role) return;
+      const wasFirstTime = !userRole;
+      selectedRole = role;
+      userRole = role;
+      rolePanelExpanded = false;
+      localStorage.setItem(USER_ROLE_KEY, role);
+      buildRolePanel(); // collapse back to card
+
+      if (wasFirstTime) {
+        clearChatView();
+        const { bubble } = buildMessage("bot");
+        const p = document.createElement("p");
+        p.style.cssText = "margin: 0; font-weight: 500;";
+        p.textContent = "תודה! איך אוכל לעזור?";
+        bubble.appendChild(p);
+        inputEl.focus();
+      } else {
+        showToast("התפקיד עודכן: " + role);
+      }
+    }
+
+    // ─── Compat stubs ───
+    function updateRoleIndicator() { /* no-op */ }
+    function changeRole() { /* no-op */ }
 
     function toggleSidebar(forceState) {
       const willOpen = typeof forceState === "boolean"
@@ -1460,7 +1706,7 @@
       // אם המשתמש כבר בחר תפקיד בעבר — לא נשאל שוב, רק נציע להתחיל
       if (userRole) {
         selectedRole = userRole;   // ייצורף לשאלה הראשונה
-        const { wrap, bubble } = buildMessage("bot");
+        const { bubble } = buildMessage("bot");
         const p = document.createElement("p");
         p.style.cssText = "margin: 0; font-weight: 500;";
         p.textContent = "שלום! מה השאלה שלך? אשמח לעזור.";
@@ -1469,49 +1715,12 @@
         return;
       }
 
-      const { wrap, bubble } = buildMessage("bot");
-
-      const intro = document.createElement("p");
-      intro.style.cssText = "margin: 0 0 14px; font-weight: 500;";
-      intro.textContent = "כדי שאוכל לנתח את המקרה נכון לפי ההקשר המקצועי, אנא בחר/י את המסגרת או התפקיד שלך:";
-      bubble.appendChild(intro);
-
-      const btns = document.createElement("div");
-      btns.className = "option-btns";
-
-      ROLES.forEach(role => {
-        const btn = document.createElement("button");
-        btn.className = "option-btn";
-        btn.textContent = role;
-        btn.addEventListener("click", () => {
-          // נעל את כל הכפתורים, סמן את שנבחר
-          btns.querySelectorAll(".option-btn").forEach(b => {
-            b.disabled = true;
-            b.style.opacity = "0.45";
-            b.style.cursor = "default";
-          });
-          btn.style.opacity = "1";
-          btn.style.background = "var(--primary)";
-          btn.style.color = "white";
-
-          // הצג בועת משתמש עם הבחירה
-          addMessage("user", role);
-
-          // שמור את המסגרת לקבע (לא נשאל שוב)
-          selectedRole = role;
-          userRole = role;
-          localStorage.setItem(USER_ROLE_KEY, role);
-          updateRoleIndicator();
-
-          // בועת בוט מקומית — בקש את השאלה (ללא API)
-          addMessage("bot", "מה השאלה שלך? אשמח לעזור.");
-
-          inputEl.focus();
-        });
-        btns.appendChild(btn);
-      });
-
-      bubble.appendChild(btns);
+      // אין תפקיד — מכוונים לרשימה הגלויה בסיידבר
+      const { bubble } = buildMessage("bot");
+      const p = document.createElement("p");
+      p.style.cssText = "margin: 0; font-weight: 500; line-height: 1.8;";
+      p.innerHTML = 'כדי להתאים את הניתוח להקשר המקצועי, בחר/י תפקיד או מסגרת מהרשימה בסרגל הצד <strong>←</strong>';
+      bubble.appendChild(p);
       scrollToBottom(true);
     }
 
@@ -1524,11 +1733,13 @@
         // לא קריטי
       }
       sessionId = null;
-      selectedRole = null;
-      activeCaseId = null;     // המקרה הבא ייווצר בלחיצה על כפתור / שליחה ראשונה
+      selectedRole = userRole || null;  // שמור תפקיד קיים
+      activeCaseId = null;              // המקרה הבא ייווצר בשליחה ראשונה
+      rolePanelExpanded = false;
       clearChatView();
       showRoleQuestion();
       renderCaseList();
+      buildRolePanel();
       toggleSidebar(false);
       inputEl.focus();
     }
@@ -1865,7 +2076,7 @@
 
     loadStatus();
     renderCaseList();
-    updateRoleIndicator();
+    buildRolePanel();
     showRoleQuestion();
     updateScrollFab();
     inputEl.focus();

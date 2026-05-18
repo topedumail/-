@@ -3,20 +3,22 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import threading
 import traceback
 import uuid
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
 from pydantic import BaseModel
 
-from llm import ChatSession, MAX_HISTORY_TURNS, stream_answer
+import db
+from llm import ChatSession, MAX_HISTORY_TURNS, stream_answer, generate_followups
 from rag import HybridIndex
 
 # --- הגדרות ---
@@ -43,8 +45,16 @@ _index_state = {"ready": False, "building": False, "error": None}
 
 
 def _get_session(session_id: str | None) -> tuple[str, ChatSession]:
-    if session_id and session_id in _sessions:
-        return session_id, _sessions[session_id]
+    if session_id:
+        # קודם מה-cache בזיכרון
+        if session_id in _sessions:
+            return session_id, _sessions[session_id]
+        # אחר כך מ-SQLite
+        history = db.load_session(session_id)
+        if history is not None:
+            session = ChatSession.from_dict_list(history)
+            _sessions[session_id] = session
+            return session_id, session
     new_id = str(uuid.uuid4())
     _sessions[new_id] = ChatSession()
     return new_id, _sessions[new_id]
@@ -58,10 +68,19 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
 
 
+class FeedbackRequest(BaseModel):
+    session_id: str | None = None
+    question: str
+    answer_preview: str
+    rating: int  # 1 = 👍, -1 = 👎
+
+
 class IndexStatus(BaseModel):
     documents: int
     chunks: int
     sources: list[str]
+
+ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown", ".docx", ".pdf", ".pptx"}
 
 
 # --- אפליקציה ---
@@ -98,6 +117,8 @@ def _build_index_in_background() -> None:
 @app.on_event("startup")
 def on_startup() -> None:
     """מפעיל את בניית האינדקס ב-thread נפרד — השרת מאזין על הפורט מיד."""
+    db.init_db()
+    print("[main] SQLite אותחל.", flush=True)
     if index is None:
         print("[main] אין מפתח OpenAI — האינדקס לא ייבנה.", flush=True)
         return
@@ -145,11 +166,101 @@ def reindex() -> IndexStatus:
 @app.post("/api/session/reset")
 def reset_session(session_id: str | None = None) -> dict:
     """איפוס היסטוריית שיחה — מתחיל סשן חדש."""
-    if session_id and session_id in _sessions:
-        del _sessions[session_id]
+    if session_id:
+        _sessions.pop(session_id, None)
+        db.delete_session(session_id)
     new_id = str(uuid.uuid4())
     _sessions[new_id] = ChatSession()
     return {"session_id": new_id, "history_size": 0}
+
+
+@app.post("/api/upload")
+def upload_files(files: list[UploadFile] = File(...)) -> dict:
+    """מקבל קבצי ידע, שומר אותם ומפעיל reindex."""
+    if index is None:
+        raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
+
+    saved, skipped, errors = [], [], []
+    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    for f in files:
+        suffix = Path(f.filename or "").suffix.lower()
+        if suffix not in ALLOWED_EXTENSIONS:
+            skipped.append(f.filename)
+            continue
+        dest = KNOWLEDGE_DIR / f.filename
+        try:
+            with dest.open("wb") as out:
+                shutil.copyfileobj(f.file, out)
+            saved.append(f.filename)
+        except Exception as e:
+            errors.append(f"{f.filename}: {e}")
+        finally:
+            f.file.close()
+
+    if not saved:
+        return {"saved": [], "skipped": skipped, "errors": errors,
+                "documents": 0, "chunks": 0}
+
+    # reindex אחרי שמירה
+    summary = index.build(KNOWLEDGE_DIR)
+    _index_state["ready"] = True
+    print(f"[upload] נשמרו {len(saved)} קבצים, reindex → {summary['documents']} מסמכים")
+    return {
+        "saved": saved,
+        "skipped": skipped,
+        "errors": errors,
+        "documents": summary["documents"],
+        "chunks": summary["chunks"],
+    }
+
+
+@app.delete("/api/upload/{filename}")
+def delete_file(filename: str) -> dict:
+    """מוחק קובץ מהמאגר ומריץ reindex."""
+    if index is None:
+        raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
+    target = KNOWLEDGE_DIR / filename
+    if not target.exists():
+        raise HTTPException(404, f"קובץ לא נמצא: {filename}")
+    # מניעת path traversal
+    try:
+        target.resolve().relative_to(KNOWLEDGE_DIR.resolve())
+    except ValueError:
+        raise HTTPException(400, "שם קובץ לא חוקי")
+    target.unlink()
+    summary = index.build(KNOWLEDGE_DIR)
+    _index_state["ready"] = True
+    return {"deleted": filename, "documents": summary["documents"], "chunks": summary["chunks"]}
+
+
+@app.get("/api/files")
+def list_files() -> dict:
+    """מחזיר רשימת קבצים במאגר."""
+    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+    files = []
+    for p in sorted(KNOWLEDGE_DIR.rglob("*")):
+        if p.is_file() and p.suffix.lower() in ALLOWED_EXTENSIONS:
+            files.append({
+                "name": p.name,
+                "size": p.stat().st_size,
+                "modified": p.stat().st_mtime,
+            })
+    return {"files": files}
+
+
+@app.post("/api/feedback")
+def save_feedback(req: FeedbackRequest) -> dict:
+    """שומר פידבק 👍/👎 על תשובה."""
+    if req.rating not in (1, -1):
+        raise HTTPException(400, "rating חייב להיות 1 או -1")
+    db.save_feedback(
+        session_id=req.session_id or "",
+        question=req.question,
+        answer_preview=req.answer_preview,
+        rating=req.rating,
+    )
+    return {"ok": True}
 
 
 @app.post("/api/chat/stream")
@@ -203,6 +314,13 @@ def chat_stream(req: ChatRequest):
         # שמור את ההיסטוריה
         session.add("user", req.question)
         session.add("assistant", full_text)
+        db.save_session(session_id, session.to_dict_list())
+
+        # שאלות המשך
+        if full_text:
+            followups = generate_followups(client, req.question, full_text)
+            if followups:
+                yield f"data: {json.dumps({'type': 'followups', 'questions': followups}, ensure_ascii=False)}\n\n"
 
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 

@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 backend/data/.embed_cache.pkl
+backend/data/bot.db
 .DS_Store
 
 # קבצים גדולים שעולים על מגבלת GitHub (100MB)
