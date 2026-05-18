@@ -1259,6 +1259,8 @@
     // זיהוי רשימת אפשרויות מסגרת והמרה לכפתורים
     const ROLE_MARKERS = ["שח\"ר", "קב\"ס", "מרכזי חירום", "רווחה", "מו\"פ"];
     function processOptionButtons(bubble) {
+      // הכפתורים מוצגים רק אם התפקיד עדיין לא נבחר
+      if (userRole) return;
       bubble.querySelectorAll("ul").forEach(ul => {
         const items = [...ul.querySelectorAll("li")];
         const matches = items.filter(li =>
