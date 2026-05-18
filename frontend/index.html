@@ -81,9 +81,9 @@
       background: linear-gradient(90deg, #c97826 0%, #e89344 30%, #fbbf24 50%, #e89344 70%, #c97826 100%);
     }
     .header-inner {
-      max-width: 1100px;
+      max-width: 1600px;
       margin: 0 auto;
-      padding: 20px 24px;
+      padding: 20px 32px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -184,10 +184,10 @@
       display: flex;
       flex-direction: row;
       gap: 16px;
-      max-width: 1280px;
+      max-width: 1600px;
       width: 100%;
       margin: 0 auto;
-      padding: 24px;
+      padding: 24px 32px;
       overflow: hidden;
       position: relative;
     }
@@ -408,6 +408,13 @@
     .scroll-bottom-fab:hover {
       box-shadow: 0 6px 18px rgba(30, 58, 138, 0.25);
     }
+    .scroll-bottom-fab.pulsing {
+      animation: fabPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes fabPulse {
+      0%, 100% { box-shadow: var(--shadow-md); }
+      50%       { box-shadow: 0 6px 22px rgba(30, 58, 138, 0.45); }
+    }
 
     /* Case search */
     .case-search-wrap {
@@ -496,7 +503,8 @@
       scrollbar-color: var(--border-strong) transparent;
       -webkit-overflow-scrolling: touch;
       overscroll-behavior: contain;
-      scroll-behavior: smooth;
+      scrollbar-gutter: stable;
+      overflow-anchor: auto;
     }
     /* Keyboard focus styles */
     button:focus-visible,
@@ -504,9 +512,19 @@
       outline: 2px solid var(--primary);
       outline-offset: 2px;
     }
-    #messages::-webkit-scrollbar { width: 5px; }
+    #messages::-webkit-scrollbar { width: 10px; }
     #messages::-webkit-scrollbar-track { background: transparent; }
-    #messages::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+    #messages::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 8px;
+      border: 3px solid transparent;
+      background-clip: padding-box;
+      transition: background 0.15s;
+    }
+    #messages::-webkit-scrollbar-thumb:hover {
+      background: var(--muted);
+      background-clip: padding-box;
+    }
 
     .msg {
       margin-bottom: 24px;
@@ -540,8 +558,9 @@
       display: flex;
       align-items: flex-end;
       gap: 10px;
-      max-width: 85%;
+      max-width: 94%;
     }
+    .msg.bot .bubble-wrap { max-width: 96%; }
     .msg.user .bubble-wrap { flex-direction: row-reverse; }
     .msg.bot  .bubble-wrap { flex-direction: row; }
 
@@ -634,7 +653,7 @@
       font-size: 13px;
       color: var(--text-soft);
       margin-top: 10px;
-      max-width: 85%;
+      max-width: 94%;
       margin-right: 46px;
     }
     .sources details {
@@ -840,7 +859,7 @@
       color: var(--text);
       line-height: 1.8;
       font-size: 15px;
-      max-width: 640px;
+      max-width: 100%;
     }
     .welcome .examples-label {
       margin-top: 16px;
@@ -919,7 +938,7 @@
     @media (max-width: 1024px) {
       main { padding: 16px 20px; gap: 12px; }
       #sidebar { width: 240px; }
-      .bubble-wrap { max-width: 88%; }
+      .bubble-wrap { max-width: 95%; }
       .welcome p { font-size: 14.5px; }
     }
 
@@ -1125,6 +1144,7 @@
     const statusEl = document.getElementById("status");
     const scrollFab = document.getElementById("scrollBottomFab");
     const toastEl = document.getElementById("toast");
+    let currentAbortController = null;
 
     // ─── Toast notifications ───
     let toastTimer = null;
@@ -1155,26 +1175,46 @@
     }
 
     // גלילה חכמה — גולל למטה רק אם המשתמש כבר קרוב לתחתית
+    let _scrollRaf = null;
     function scrollToBottom(force = false) {
       const threshold = 120; // פיקסלים מהתחתית
       const nearBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < threshold;
       if (force || nearBottom) {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        // Batch via rAF — many delta events per second collapse to one scroll per frame
+        if (_scrollRaf) cancelAnimationFrame(_scrollRaf);
+        _scrollRaf = requestAnimationFrame(() => {
+          _scrollRaf = null;
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+          updateScrollFab();
+        });
+      } else {
+        updateScrollFab();
       }
-      updateScrollFab();
     }
 
+    // rAF-throttled scroll listener for FAB visibility + pulse
+    let _fabRaf = null;
     function updateScrollFab() {
       if (!scrollFab) return;
       const fromBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
-      scrollFab.classList.toggle("visible", fromBottom > 240);
+      const away = fromBottom > 240;
+      scrollFab.classList.toggle("visible", away);
+      // Pulse only while content is actively streaming and user is scrolled away
+      scrollFab.classList.toggle("pulsing", away && !!currentAbortController);
+    }
+    function onMessagesScroll() {
+      if (_fabRaf) return;
+      _fabRaf = requestAnimationFrame(() => {
+        _fabRaf = null;
+        updateScrollFab();
+      });
     }
     if (messagesEl) {
-      messagesEl.addEventListener("scroll", updateScrollFab, { passive: true });
+      messagesEl.addEventListener("scroll", onMessagesScroll, { passive: true });
     }
     if (scrollFab) {
       scrollFab.addEventListener("click", () => {
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
       });
     }
 
@@ -1632,7 +1672,6 @@
       return wrap;
     }
 
-    let currentAbortController = null;
     function setStreamingState(streaming) {
       const icon = document.getElementById("sendIcon");
       const label = document.getElementById("sendLabel");
