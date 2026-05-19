@@ -6,12 +6,16 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
 from typing import Optional
 
-DB_PATH = Path(__file__).parent / "data" / "bot.db"
+# DATA_DIR מאפשר לאחסן את ה-DB בנפח פרסיסטנטי (Railway Volume וכד').
+# כשמשתנה הסביבה לא מוגדר, נופלים חזרה ל-backend/data של הפיתוח הלוקאלי.
+_DATA_DIR = Path(os.environ.get("DATA_DIR") or Path(__file__).parent / "data")
+DB_PATH = _DATA_DIR / "bot.db"
 
 
 def _get_conn() -> sqlite3.Connection:

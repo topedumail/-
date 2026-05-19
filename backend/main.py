@@ -24,11 +24,18 @@ from rag import HybridIndex
 # --- הגדרות ---
 BACKEND_DIR = Path(__file__).parent
 PROJECT_DIR = BACKEND_DIR.parent
-KNOWLEDGE_DIR = BACKEND_DIR / "data" / "knowledge"
-CACHE_PATH = BACKEND_DIR / "data" / ".embed_cache.pkl"
-FRONTEND_DIR = PROJECT_DIR / "frontend"
-
 load_dotenv(PROJECT_DIR / ".env")
+
+# DATA_DIR מאפשר לאחסן cache + db בנפח פרסיסטנטי (Railway Volume וכד').
+# ברירת מחדל — תיקיית data שבתוך backend (מתאים לפיתוח לוקאלי).
+DATA_DIR = Path(os.environ.get("DATA_DIR") or BACKEND_DIR / "data")
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+# מסמכי הידע תמיד נטענים מהריפו (חלק מהקוד, לא נתון משתמש)
+KNOWLEDGE_DIR = BACKEND_DIR / "data" / "knowledge"
+# Cache + DB מוצאים מהריפו אל DATA_DIR — שורדים deploys כשעל volume
+CACHE_PATH = DATA_DIR / ".embed_cache.pkl"
+FRONTEND_DIR = PROJECT_DIR / "frontend"
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 if not API_KEY:
