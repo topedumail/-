@@ -241,7 +241,7 @@ def generate_followups(client: OpenAI, question: str, answer: str) -> list[str]:
             f"תשובה: {answer[:600]}"
         )
         resp = client.chat.completions.create(
-            model="gpt-5.4-mini",
+            model=CHAT_MODEL,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=150,
