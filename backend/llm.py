@@ -8,7 +8,7 @@ from openai import OpenAI
 
 from rag import SearchResult
 
-CHAT_MODEL = "gpt-4o"  # איכות גבוהה, תומך בעברית מצוין
+CHAT_MODEL = "gpt-5.5"  # המודל החדש ביותר (2026-04-23) — איכות מירבית בעברית
 MAX_HISTORY_TURNS = 6  # שומר עד 6 turns אחרונות (3 user + 3 assistant)
 
 SYSTEM_PROMPT = """\
@@ -215,10 +215,10 @@ def stream_answer(
     messages.extend(session.to_messages())
     messages.append({"role": "user", "content": user_message})
 
+    # gpt-5.x תומך רק ב-temperature ברירת המחדל (1); לכן לא מעבירים אותו.
     stream = client.chat.completions.create(
         model=CHAT_MODEL,
         messages=messages,
-        temperature=0.1,
         stream=True,
     )
 
@@ -241,10 +241,9 @@ def generate_followups(client: OpenAI, question: str, answer: str) -> list[str]:
             f"תשובה: {answer[:600]}"
         )
         resp = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=CHAT_MODEL,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            max_tokens=150,
+            max_completion_tokens=200,
         )
         raw = resp.choices[0].message.content or ""
         lines = [
