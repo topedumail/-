@@ -152,6 +152,8 @@ def reindex() -> IndexStatus:
     if index is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
     summary = index.build(KNOWLEDGE_DIR)
+    _index_state["ready"] = True
+    _index_state["error"] = None
     print(
         f"[main] reindex: {summary['documents']} מסמכים, "
         f"{summary['chunks']} chunks ({summary['new']} חדשים, {summary['cached']} מ-cache)."
