@@ -496,6 +496,8 @@
       flex-direction: column;
       min-width: 0;
       position: relative;
+      margin-right: 2rem;
+      margin-left: 2rem;
     }
 
     /* Message hover actions (copy button under bot bubble) */
@@ -924,16 +926,17 @@
     }
     #input {
       flex: 1;
-      padding: 8px 14px;
+      padding: 6px 14px;
       border: none;
       border-radius: 8px;
       font-size: 15px;
       font-family: inherit;
       resize: none;
       direction: rtl;
-      line-height: 1.5;
+      line-height: 1.6;
       background: transparent;
       color: var(--text);
+      height: 38px;
       min-height: 38px;
     }
     #input:focus {
@@ -1313,7 +1316,7 @@
         הודעות חדשות
       </button>
       <div class="composer">
-        <textarea id="input" rows="2" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
+        <textarea id="input" rows="1" placeholder="הקלד/י שאלה ולחץ/י Enter (Shift+Enter לשורה חדשה)..."></textarea>
         <button id="send" onclick="handleSendClick()" aria-label="שלח הודעה">
           <svg id="sendIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           <span id="sendLabel">שלח</span>
@@ -1931,7 +1934,7 @@
       const q = inputEl.value.trim();
       if (!q) return;
       inputEl.value = "";
-      inputEl.style.height = "auto";
+      inputEl.style.height = "38px";
 
       // צור מקרה חדש אם זו ההודעה הראשונה בשיחה
       if (!activeCaseId) {
@@ -2076,10 +2079,11 @@
       }
     });
 
-    // Auto-grow textarea
+    // Auto-grow textarea — start at 38px (matches send button), grow up to 140px
     function autoGrowInput() {
-      inputEl.style.height = "auto";
-      inputEl.style.height = Math.min(inputEl.scrollHeight, 180) + "px";
+      inputEl.style.height = "38px";
+      const target = Math.min(inputEl.scrollHeight, 140);
+      if (target > 38) inputEl.style.height = target + "px";
     }
     inputEl.addEventListener("input", autoGrowInput);
 
