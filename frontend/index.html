@@ -2095,6 +2095,11 @@
             } else if (event.type === "sources") {
               // נשמור את ה-matches עד שתסיים התשובה
               window._pendingMatches = event.matches;
+            } else if (event.type === "error") {
+              // שגיאה ידידותית מצד השרת (למשל תקלה זמנית מול OpenAI)
+              if (botMsg) botMsg.remove();
+              typing.remove();
+              addMessage("error", event.message || "אירעה שגיאה זמנית. נסה/י שוב.");
             } else if (event.type === "delta") {
               if (!botMsg) {
                 typing.remove();

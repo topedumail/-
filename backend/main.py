@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import shutil
 import threading
 import traceback
@@ -308,17 +309,56 @@ def chat_stream(req: ChatRequest):
         ]
         yield f"data: {json.dumps({'type': 'sources', 'matches': matches}, ensure_ascii=False)}\n\n"
 
+        # --- צריכת תשובת ה-LLM עם keepalive ---
+        # gpt-5.x "חושב" שניות רבות לפני הטוקן הראשון, ובמהלך השיחה זה
+        # מתארך. בזמן השקט הזה אין נתונים ב-SSE — מה שגורם ל-proxy של
+        # Railway/הרשת לסגור את החיבור ("network error" אצל המשתמש).
+        # פתרון: מריצים את הסטרים של OpenAI ב-thread נפרד, ושולחים הערת
+        # SSE (": ping") כל כמה שניות כל עוד אין delta — כך החיבור נשאר חי.
         full_text = ""
-        gen = stream_answer(client, req.question, results, session)
-        try:
-            while True:
-                delta = next(gen)
-                full_text += delta
-                yield f"data: {json.dumps({'type': 'delta', 'text': delta}, ensure_ascii=False)}\n\n"
-        except StopIteration as stop:
-            if not full_text and stop.value:
-                full_text = stop.value
-                yield f"data: {json.dumps({'type': 'delta', 'text': full_text}, ensure_ascii=False)}\n\n"
+        delta_q: queue.Queue = queue.Queue()
+        _DONE = object()
+        producer_state: dict = {"error": None, "value": ""}
+
+        def _produce():
+            gen = stream_answer(client, req.question, results, session)
+            try:
+                while True:
+                    try:
+                        delta_q.put(next(gen))
+                    except StopIteration as stop:
+                        producer_state["value"] = stop.value or ""
+                        break
+            except Exception as exc:  # שגיאת OpenAI באמצע הסטרים
+                producer_state["error"] = str(exc)
+            finally:
+                delta_q.put(_DONE)
+
+        threading.Thread(target=_produce, daemon=True).start()
+
+        KEEPALIVE_SEC = 10
+        while True:
+            try:
+                item = delta_q.get(timeout=KEEPALIVE_SEC)
+            except queue.Empty:
+                # אין delta כבר 10 שניות — שולחים הערת SSE כדי לשמור על החיבור
+                yield ": ping\n\n"
+                continue
+            if item is _DONE:
+                break
+            full_text += item
+            yield f"data: {json.dumps({'type': 'delta', 'text': item}, ensure_ascii=False)}\n\n"
+
+        # אם לא הגיע אף delta אבל יש ערך סופי (מקרה קצה)
+        if not full_text and producer_state["value"]:
+            full_text = producer_state["value"]
+            yield f"data: {json.dumps({'type': 'delta', 'text': full_text}, ensure_ascii=False)}\n\n"
+
+        # אם הייתה שגיאה בצד OpenAI — מדווחים למשתמש בצורה ידידותית
+        if producer_state["error"] and not full_text:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'אירעה שגיאה זמנית מול מנוע הבינה. נסה/י שוב.'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            return
 
         # שמור את ההיסטוריה
         session.add("user", req.question)
