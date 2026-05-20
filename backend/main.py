@@ -10,6 +10,7 @@ import traceback
 import uuid
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -42,7 +43,17 @@ API_KEY = os.environ.get("OPENAI_API_KEY")
 if not API_KEY:
     print("[main] אזהרה: לא הוגדר OPENAI_API_KEY. הבוט לא יענה עד שיוגדר.")
 
-client = OpenAI(api_key=API_KEY) if API_KEY else None
+# Timeouts מותאמים למודל חשיבה (gpt-5.x):
+#  - connect: 15ש' להקמת החיבור
+#  - read: 120ש' בין chunks — מכסה זמן "חשיבה" ארוך לפני/בין טוקנים
+#  - write/pool: 15ש'
+# max_retries=2 → ניסיון חוזר אוטומטי (backoff) על 429/5xx זמניים.
+_OPENAI_TIMEOUT = httpx.Timeout(120.0, connect=15.0, write=15.0, pool=15.0)
+client = (
+    OpenAI(api_key=API_KEY, timeout=_OPENAI_TIMEOUT, max_retries=2)
+    if API_KEY
+    else None
+)
 index = HybridIndex(client=client, cache_path=CACHE_PATH) if client else None
 
 # Sessions בזיכרון. בפרודקשן צריך Redis או DB.

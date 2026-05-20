@@ -2072,8 +2072,24 @@
         const decoder = new TextDecoder();
         let buffer = "";
 
+        // Watchdog — השרת שולח ": ping" כל 10ש'. אם לא הגיע שום בייט
+        // (גם לא ping) במשך 45ש', הרשת מתה — נפסיק במקום להיתקע לנצח.
+        const STALL_MS = 45000;
         while (true) {
-          const { value, done } = await reader.read();
+          let timeoutId;
+          const stallGuard = new Promise((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error("חיבור איטי או מנותק (timeout)")),
+              STALL_MS
+            );
+          });
+          let res;
+          try {
+            res = await Promise.race([reader.read(), stallGuard]);
+          } finally {
+            clearTimeout(timeoutId);
+          }
+          const { value, done } = res;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
           // SSE: events separated by \n\n
@@ -2162,7 +2178,24 @@
         } else {
           if (botMsg) botMsg.remove();
           typing.remove();
-          addMessage("error", "שגיאה ברשת: " + e.message);
+          // שמירת השאלה כך שכפתור "נסה שוב" יוכל לשלוח אותה מחדש
+          const failedQ = q;
+          const errWrap = addMessage(
+            "error",
+            "החיבור נקטע באמצע. ייתכן שהרשת איטית — אפשר לנסות שוב."
+          );
+          if (errWrap && errWrap.wrap) {
+            const retry = document.createElement("button");
+            retry.className = "example-chip";
+            retry.style.marginTop = "10px";
+            retry.textContent = "↻ נסה/י שוב";
+            retry.onclick = () => {
+              errWrap.wrap.remove();
+              inputEl.value = failedQ;
+              send();
+            };
+            errWrap.wrap.appendChild(retry);
+          }
         }
       } finally {
         currentAbortController = null;
