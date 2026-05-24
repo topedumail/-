@@ -9,6 +9,8 @@ from openai import OpenAI
 from rag import SearchResult
 
 CHAT_MODEL = "gpt-5.5"  # המודל החדש ביותר (2026-04-23) — איכות מירבית בעברית
+# שאלות המשך הן משימה טריוויאלית — מודל מהיר (לא "חושב") חוסך 5-30ש' לכל תשובה.
+FOLLOWUP_MODEL = "gpt-5.4-mini"
 MAX_HISTORY_TURNS = 6  # שומר עד 6 turns אחרונות (3 user + 3 assistant)
 
 SYSTEM_PROMPT = """\
@@ -246,7 +248,7 @@ def stream_answer(
 
 
 def generate_followups(client: OpenAI, question: str, answer: str) -> list[str]:
-    """מייצר עד 3 שאלות המשך קצרות — קריאה מהירה ל-gpt-4o-mini."""
+    """מייצר עד 3 שאלות המשך קצרות — קריאה מהירה (FOLLOWUP_MODEL)."""
     try:
         prompt = (
             "בהתבסס על השאלה והתשובה הבאות, כתוב בדיוק 3 שאלות המשך רלוונטיות.\n"
@@ -255,7 +257,7 @@ def generate_followups(client: OpenAI, question: str, answer: str) -> list[str]:
             f"תשובה: {answer[:600]}"
         )
         resp = client.chat.completions.create(
-            model=CHAT_MODEL,
+            model=FOLLOWUP_MODEL,
             messages=[{"role": "user", "content": prompt}],
             max_completion_tokens=200,
         )

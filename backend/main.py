@@ -8,6 +8,8 @@ import shutil
 import threading
 import traceback
 import uuid
+from collections import OrderedDict
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
@@ -17,10 +19,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import db
-from llm import ChatSession, MAX_HISTORY_TURNS, stream_answer, generate_followups
+from llm import ChatSession, stream_answer, generate_followups
 from rag import HybridIndex
 
 # --- הגדרות ---
@@ -56,34 +58,53 @@ client = (
 )
 index = HybridIndex(client=client, cache_path=CACHE_PATH) if client else None
 
-# Sessions בזיכרון. בפרודקשן צריך Redis או DB.
-_sessions: dict[str, ChatSession] = {}
+# Cache סשנים בזיכרון מוגבל ב-LRU — ה-DB (SQLite) הוא מקור האמת הקבוע,
+# כך שאפשר לפנות סשנים ישנים מהזיכרון בלי לאבד היסטוריה.
+MAX_SESSIONS_IN_MEMORY = 500
+_sessions: "OrderedDict[str, ChatSession]" = OrderedDict()
+_sessions_lock = threading.Lock()
 
 # סטטוס בניית האינדקס — כדי שהשרת יוכל לדווח אם האינדקס מוכן.
 _index_state = {"ready": False, "building": False, "error": None}
 
 
+def _cache_session(session_id: str, session: ChatSession) -> None:
+    """מכניס/מקדם סשן ב-LRU ומפנה את הישן ביותר כשעוברים את התקרה."""
+    with _sessions_lock:
+        _sessions[session_id] = session
+        _sessions.move_to_end(session_id)
+        while len(_sessions) > MAX_SESSIONS_IN_MEMORY:
+            _sessions.popitem(last=False)  # מפנה את ה-LRU (הישן ביותר)
+
+
 def _get_session(session_id: str | None) -> tuple[str, ChatSession]:
     if session_id:
         # קודם מה-cache בזיכרון
-        if session_id in _sessions:
-            return session_id, _sessions[session_id]
-        # אחר כך מ-SQLite
+        with _sessions_lock:
+            cached = _sessions.get(session_id)
+            if cached is not None:
+                _sessions.move_to_end(session_id)  # סומן כ"בשימוש לאחרונה"
+                return session_id, cached
+        # אחר כך מ-SQLite (מקור האמת הקבוע)
         history = db.load_session(session_id)
         if history is not None:
             session = ChatSession.from_dict_list(history)
-            _sessions[session_id] = session
+            _cache_session(session_id, session)
             return session_id, session
     new_id = str(uuid.uuid4())
-    _sessions[new_id] = ChatSession()
-    return new_id, _sessions[new_id]
+    session = ChatSession()
+    _cache_session(new_id, session)
+    return new_id, session
 
 
 # --- מודלים ---
 
 
+MAX_QUESTION_LEN = 6000  # מגבלת אורך שאלה — מונע עלויות טוקנים חריגות
+
+
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=1, max_length=MAX_QUESTION_LEN)
     session_id: str | None = None
 
 
@@ -102,15 +123,16 @@ class IndexStatus(BaseModel):
 ALLOWED_EXTENSIONS = {".txt", ".md", ".markdown", ".docx", ".pdf", ".pptx"}
 
 
-# --- אפליקציה ---
-app = FastAPI(title="בוט אגף בכיר חינוך ילדים ונוער בסיכון", version="0.2.0")
+def _rebuild_index() -> dict:
+    """בונה מחדש את האינדקס ומעדכן את הסטטוס. משותף ל-reindex/upload/delete.
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    index.build תופס build_lock פנימי, כך שקריאות מקבילות מסתדרות זו אחר זו
+    במקום לדרוס את ה-cache. מחזיר את ה-summary של הבנייה.
+    """
+    summary = index.build(KNOWLEDGE_DIR)
+    _index_state["ready"] = True
+    _index_state["error"] = None
+    return summary
 
 
 def _build_index_in_background() -> None:
@@ -118,13 +140,12 @@ def _build_index_in_background() -> None:
     _index_state["building"] = True
     try:
         KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
-        summary = index.build(KNOWLEDGE_DIR)
+        summary = _rebuild_index()
         print(
             f"[main] נטענו {summary['documents']} מסמכים, "
             f"{summary['chunks']} chunks ({summary['new']} חדשים, {summary['cached']} מ-cache).",
             flush=True,
         )
-        _index_state["ready"] = True
     except Exception as e:
         _index_state["error"] = str(e)
         print(f"[main] שגיאה בבניית האינדקס: {e}", flush=True)
@@ -133,16 +154,32 @@ def _build_index_in_background() -> None:
         _index_state["building"] = False
 
 
-@app.on_event("startup")
-def on_startup() -> None:
-    """מפעיל את בניית האינדקס ב-thread נפרד — השרת מאזין על הפורט מיד."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """מחליף את on_event המיושן — אתחול DB + בניית אינדקס ברקע בעליית השרת."""
     db.init_db()
     print("[main] SQLite אותחל.", flush=True)
     if index is None:
         print("[main] אין מפתח OpenAI — האינדקס לא ייבנה.", flush=True)
-        return
-    threading.Thread(target=_build_index_in_background, daemon=True).start()
-    print("[main] השרת עלה. בניית האינדקס רצה ברקע.", flush=True)
+    else:
+        threading.Thread(target=_build_index_in_background, daemon=True).start()
+        print("[main] השרת עלה. בניית האינדקס רצה ברקע.", flush=True)
+    yield
+
+
+# --- אפליקציה ---
+app = FastAPI(
+    title="בוט אגף בכיר חינוך ילדים ונוער בסיכון",
+    version="0.2.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
@@ -160,7 +197,7 @@ def status() -> IndexStatus:
         raise HTTPException(503, "האינדקס בתהליך בנייה — נסה שוב בעוד דקה")
     sources = sorted({c.source for c in index.chunks})
     return IndexStatus(
-        documents=len({c.source for c in index.chunks}),
+        documents=len(sources),  # sources כבר ייחודי וממוין
         chunks=len(index.chunks),
         sources=sources,
     )
@@ -170,9 +207,7 @@ def status() -> IndexStatus:
 def reindex() -> IndexStatus:
     if index is None:
         raise HTTPException(503, "OPENAI_API_KEY לא מוגדר")
-    summary = index.build(KNOWLEDGE_DIR)
-    _index_state["ready"] = True
-    _index_state["error"] = None
+    summary = _rebuild_index()
     print(
         f"[main] reindex: {summary['documents']} מסמכים, "
         f"{summary['chunks']} chunks ({summary['new']} חדשים, {summary['cached']} מ-cache)."
@@ -188,10 +223,11 @@ def reindex() -> IndexStatus:
 def reset_session(session_id: str | None = None) -> dict:
     """איפוס היסטוריית שיחה — מתחיל סשן חדש."""
     if session_id:
-        _sessions.pop(session_id, None)
+        with _sessions_lock:
+            _sessions.pop(session_id, None)
         db.delete_session(session_id)
     new_id = str(uuid.uuid4())
-    _sessions[new_id] = ChatSession()
+    _cache_session(new_id, ChatSession())
     return {"session_id": new_id, "history_size": 0}
 
 
@@ -224,8 +260,7 @@ def upload_files(files: list[UploadFile] = File(...)) -> dict:
                 "documents": 0, "chunks": 0}
 
     # reindex אחרי שמירה
-    summary = index.build(KNOWLEDGE_DIR)
-    _index_state["ready"] = True
+    summary = _rebuild_index()
     print(f"[upload] נשמרו {len(saved)} קבצים, reindex → {summary['documents']} מסמכים")
     return {
         "saved": saved,
@@ -250,8 +285,7 @@ def delete_file(filename: str) -> dict:
     except ValueError:
         raise HTTPException(400, "שם קובץ לא חוקי")
     target.unlink()
-    summary = index.build(KNOWLEDGE_DIR)
-    _index_state["ready"] = True
+    summary = _rebuild_index()
     return {"deleted": filename, "documents": summary["documents"], "chunks": summary["chunks"]}
 
 

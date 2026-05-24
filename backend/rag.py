@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import pickle
 import re
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -102,6 +103,11 @@ class HybridIndex:
         self._vector_matrix: np.ndarray | None = None  # נורמלי, שורה לכל chunk
         self._bm25: BM25Okapi | None = None
         self._embed_cache: dict[str, np.ndarray] = self._load_cache()
+        # מגן על ה-swap של (chunks, matrix, bm25) מול search מקבילי.
+        # build העתיר-רשת רץ מחוץ ל-lock; ה-lock ננעל רק לרגע ההחלפה.
+        self._lock = threading.RLock()
+        # מונע שתי בניות מקבילות שידרסו את ה-embed_cache זו של זו.
+        self._build_lock = threading.Lock()
 
     def _load_cache(self) -> dict[str, np.ndarray]:
         if self.cache_path.exists():
@@ -122,50 +128,60 @@ class HybridIndex:
         return [np.array(d.embedding, dtype=np.float32) for d in resp.data]
 
     def build(self, knowledge_dir: Path) -> dict:
-        """בונה את האינדקס מתיקיית הידע. מחזיר סיכום."""
-        docs = load_documents(knowledge_dir)
-        chunks = build_chunks(docs)
+        """בונה את האינדקס מתיקיית הידע. מחזיר סיכום.
 
-        # סינון chunks עם טקסט זבל (PDF סרוקים ללא OCR, קידוד שגוי)
-        before = len(chunks)
-        chunks = [c for c in chunks if not _is_garbage_chunk(c.text, c.source)]
-        filtered = before - len(chunks)
-        if filtered:
-            print(f"[rag] סוננו {filtered} chunks עם טקסט מקולקל.")
+        העבודה היקרה (embeddings) רצה ללא ה-swap-lock כדי לא לחסום חיפוש.
+        ה-swap-lock ננעל רק לרגע החלפת (chunks, matrix, bm25) — אטומי וזריז.
+        build_lock מבטיח שלא ירוצו שתי בניות במקביל (דריסת cache).
+        """
+        with self._build_lock:
+            docs = load_documents(knowledge_dir)
+            chunks = build_chunks(docs)
 
-        if not chunks:
-            self.chunks = []
-            self._vector_matrix = None
-            self._bm25 = None
-            return {"documents": 0, "chunks": 0, "cached": 0, "new": 0, "sources": []}
+            # סינון chunks עם טקסט זבל (PDF סרוקים ללא OCR, קידוד שגוי)
+            before = len(chunks)
+            chunks = [c for c in chunks if not _is_garbage_chunk(c.text, c.source)]
+            filtered = before - len(chunks)
+            if filtered:
+                print(f"[rag] סוננו {filtered} chunks עם טקסט מקולקל.")
 
-        # --- חישוב embeddings (עם cache) ---
-        hashes = [_hash_chunk(c.source, c.text) for c in chunks]
-        to_embed_idx: list[int] = []
-        to_embed_texts: list[str] = []
-        for i, (chunk, key) in enumerate(zip(chunks, hashes)):
-            if key not in self._embed_cache:
-                to_embed_idx.append(i)
-                to_embed_texts.append(chunk.text)
+            if not chunks:
+                with self._lock:
+                    self.chunks = []
+                    self._vector_matrix = None
+                    self._bm25 = None
+                return {"documents": 0, "chunks": 0, "cached": 0, "new": 0, "sources": []}
 
-        for start in range(0, len(to_embed_texts), BATCH_SIZE):
-            batch = to_embed_texts[start : start + BATCH_SIZE]
-            embeddings = self._embed_batch(batch)
-            for j, emb in enumerate(embeddings):
-                key = hashes[to_embed_idx[start + j]]
-                self._embed_cache[key] = emb
-        self._save_cache()
+            # --- חישוב embeddings (עם cache) ---
+            hashes = [_hash_chunk(c.source, c.text) for c in chunks]
+            to_embed_idx: list[int] = []
+            to_embed_texts: list[str] = []
+            for i, (chunk, key) in enumerate(zip(chunks, hashes)):
+                if key not in self._embed_cache:
+                    to_embed_idx.append(i)
+                    to_embed_texts.append(chunk.text)
 
-        # --- בניית מטריצת וקטורים מנורמלת ---
-        self.chunks = chunks
-        vectors = np.vstack([self._embed_cache[h] for h in hashes])
-        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
-        norms[norms == 0] = 1.0
-        self._vector_matrix = vectors / norms
+            for start in range(0, len(to_embed_texts), BATCH_SIZE):
+                batch = to_embed_texts[start : start + BATCH_SIZE]
+                embeddings = self._embed_batch(batch)
+                for j, emb in enumerate(embeddings):
+                    key = hashes[to_embed_idx[start + j]]
+                    self._embed_cache[key] = emb
+            self._save_cache()
 
-        # --- בניית BM25 ---
-        tokenized = [_tokenize_hebrew(c.text) for c in chunks]
-        self._bm25 = BM25Okapi(tokenized)
+            # --- בניית מטריצה + BM25 לתוך משתנים מקומיים (ללא lock) ---
+            vectors = np.vstack([self._embed_cache[h] for h in hashes])
+            norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            vector_matrix = vectors / norms
+            tokenized = [_tokenize_hebrew(c.text) for c in chunks]
+            bm25 = BM25Okapi(tokenized)
+
+            # --- swap אטומי: search רואה תמיד מצב עקבי ---
+            with self._lock:
+                self.chunks = chunks
+                self._vector_matrix = vector_matrix
+                self._bm25 = bm25
 
         sources_set = sorted({c.source for c in chunks})
         return {
@@ -176,35 +192,45 @@ class HybridIndex:
             "sources": sources_set,
         }
 
-    def _vector_search(self, query: str, k: int) -> list[tuple[int, float]]:
+    def _vector_search(
+        self, query: str, k: int, matrix: np.ndarray | None
+    ) -> list[tuple[int, float]]:
         """מחזיר רשימה של (chunk_idx, similarity) ממוין מהגבוה לנמוך."""
-        if self._vector_matrix is None:
+        if matrix is None:
             return []
         q_emb = self._embed_batch([query])[0]
         q_norm = np.linalg.norm(q_emb) or 1.0
         q_vec = q_emb / q_norm
-        scores = self._vector_matrix @ q_vec
+        scores = matrix @ q_vec
         top_idx = np.argsort(-scores)[:k]
         return [(int(i), float(scores[i])) for i in top_idx]
 
-    def _bm25_search(self, query: str, k: int) -> list[tuple[int, float]]:
+    def _bm25_search(
+        self, query: str, k: int, bm25: BM25Okapi | None
+    ) -> list[tuple[int, float]]:
         """מחזיר רשימה של (chunk_idx, bm25_score) ממוין מהגבוה לנמוך."""
-        if self._bm25 is None:
+        if bm25 is None:
             return []
         tokens = _tokenize_hebrew(query)
         if not tokens:
             return []
-        scores = self._bm25.get_scores(tokens)
+        scores = bm25.get_scores(tokens)
         top_idx = np.argsort(-scores)[:k]
         return [(int(i), float(scores[i])) for i in top_idx if scores[i] > 0]
 
     def search(self, query: str, k: int = 6) -> list[SearchResult]:
         """חיפוש היברידי: BM25 + Vector → RRF → top k."""
-        if not self.chunks:
+        # snapshot עקבי תחת lock — מונע קריאה של מצב חצי-מעודכן בזמן build.
+        # החיפוש עצמו (כולל קריאת רשת ל-embedding) רץ על המשתנים המקומיים.
+        with self._lock:
+            chunks = self.chunks
+            matrix = self._vector_matrix
+            bm25 = self._bm25
+        if not chunks:
             return []
 
-        vector_results = self._vector_search(query, RETRIEVE_PER_METHOD)
-        bm25_results = self._bm25_search(query, RETRIEVE_PER_METHOD)
+        vector_results = self._vector_search(query, RETRIEVE_PER_METHOD, matrix)
+        bm25_results = self._bm25_search(query, RETRIEVE_PER_METHOD, bm25)
 
         # --- Reciprocal Rank Fusion ---
         rrf_scores: dict[int, float] = {}
@@ -223,7 +249,7 @@ class HybridIndex:
         sorted_idx = sorted(rrf_scores.keys(), key=lambda i: -rrf_scores[i])[:k]
         results: list[SearchResult] = []
         for idx in sorted_idx:
-            chunk = self.chunks[idx]
+            chunk = chunks[idx]
             results.append(
                 SearchResult(
                     source=chunk.source,
